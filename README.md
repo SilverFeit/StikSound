@@ -292,10 +292,12 @@ apps/
   desktop/       App Tauri para Windows/macOS
   extension/     Extensión Chrome Manifest V3
   web/           App Web / PWA desplegada en GitHub Pages
+  mcp/           Servidor MCP local para agentes de IA (Claude Code, Codex, Claude Desktop)
 packages/
   core/          Modelo de proyecto, invariantes, validación y casos de uso
   ui/            Editor React, barra de recorte y textos i18n
   media-web/     Sniffing, decodificación, trim, waveform, mux y ZIP en TypeScript
+  media-node/    Motor de medios para Node sobre el FFmpeg instalado en el equipo
   providers/     Extracción y política de URLs de MyInstants
 crates/
   audio-engine/  Probe/decodificación/trim de audio en Rust
@@ -305,7 +307,7 @@ crates/
 docs/            Requisitos, arquitectura, especificaciones y decisiones
 ```
 
-La idea principal es que la UI no contiene reglas de negocio: React llama a casos de uso de `packages/core`, y esos casos de uso delegan el trabajo de medios en un motor intercambiable (`WebMediaEngine` o componentes Rust en desktop).
+La idea principal es que la UI no contiene reglas de negocio: React llama a casos de uso de `packages/core`, y esos casos de uso delegan el trabajo de medios en un motor intercambiable (`WebMediaEngine`, componentes Rust en desktop o `NodeMediaEngine` en el servidor MCP).
 
 ---
 
@@ -329,6 +331,20 @@ En macOS, si aparece el aviso de desarrollador no verificado, haz clic derecho s
 4. Activa **Modo de desarrollador**.
 5. Pulsa **Cargar descomprimida** y selecciona la carpeta descomprimida.
 6. Haz clic en el icono de StikSound: se abrirá el editor en una pestaña.
+
+### Servidor MCP para agentes de IA (Claude Code, Codex, Claude Desktop)
+
+El servidor MCP permite pedirle a un agente que cree el sticker por ti: recibe la ruta de una imagen y un audio local o un enlace de MyInstants, y deja el archivo en `~/Downloads/StikSound`.
+
+A diferencia de las apps, **requiere FFmpeg instalado** (`brew install ffmpeg`, `sudo apt install ffmpeg` o `winget install Gyan.FFmpeg`) y se compila desde este repositorio:
+
+```bash
+npm install
+npm run build --workspace=@stiksound/mcp
+claude mcp add stiksound --scope user -- node /RUTA/ABSOLUTA/StikSound/apps/mcp/dist/index.js
+```
+
+La configuración para Codex y Claude Desktop, la referencia de herramientas y los límites están en [apps/mcp/README.md](apps/mcp/README.md). El resultado es un archivo para compartir, no un sticker instalado en WhatsApp.
 
 ---
 

@@ -82,10 +82,12 @@ apps/
   desktop/       App Tauri para Windows/macOS
   extension/     Extensão Chrome Manifest V3
   web/           App Web / PWA publicado no GitHub Pages
+  mcp/           Servidor MCP local para agentes de IA (Claude Code, Codex, Claude Desktop)
 packages/
   core/          Modelo de projeto, invariantes, validação e casos de uso
   ui/            Editor React compartilhado, barra de recorte e i18n (9 idiomas)
   media-web/     Sniffing, decodificação, trim, waveform, mux e ZIP em TypeScript
+  media-node/    Motor de mídia para Node sobre o FFmpeg instalado na máquina
   providers/     Extração e política de URLs do MyInstants
 crates/
   audio-engine/  Probe/decodificação/trim de áudio em Rust
@@ -107,6 +109,17 @@ docs/            Requisitos, arquitetura, especificações e decisões
 ### Extensão Chrome / Edge / Brave
 1. Baixe `StikSound-*-chrome-extension.zip` em [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest) e extraia o arquivo.
 2. Abra `chrome://extensions/`, ative o **Modo do desenvolvedor**, clique em **Carregar sem compactação** e selecione a pasta extraída.
+
+### Servidor MCP para agentes de IA (Claude Code, Codex, Claude Desktop)
+O servidor MCP permite pedir a um agente que crie o sticker por você a partir do caminho de uma imagem e de um áudio local ou de um link do MyInstants. Diferente dos apps, **ele requer o FFmpeg instalado** (`brew install ffmpeg`, `sudo apt install ffmpeg` ou `winget install Gyan.FFmpeg`) e é compilado a partir deste repositório:
+
+```bash
+npm install
+npm run build --workspace=@stiksound/mcp
+claude mcp add stiksound --scope user -- node /CAMINHO/ABSOLUTO/StikSound/apps/mcp/dist/index.js
+```
+
+A configuração para Codex e Claude Desktop, a referência das ferramentas e os limites estão em [apps/mcp/README.md](apps/mcp/README.md). O resultado é um arquivo para compartilhar, não um sticker instalado no WhatsApp.
 
 ---
 
