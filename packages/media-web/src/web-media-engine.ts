@@ -258,14 +258,20 @@ export class WebMediaEngine implements MediaEngine {
     const imgData = new ImageData(new Uint8ClampedArray(frame.data), frame.width, frame.height);
     ctx.putImageData(imgData, 0, 0);
 
-    for (const quality of [1.0, 0.9, 0.8, 0.7, 0.6, 0.5]) {
+    for (const quality of [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]) {
       const blob = await canvas.convertToBlob({ type: "image/webp", quality });
+      if (blob.type && blob.type !== "image/webp") {
+        throw new StikSoundError(
+          "unsupported-codec",
+          `Browser canvas cannot encode image/webp (returned ${blob.type}).`
+        );
+      }
       const arr = new Uint8Array(await blob.arrayBuffer());
       if (arr.byteLength <= LIMITS.MAX_STATIC_WEBP_BYTES) {
         return arr;
       }
     }
-    throw new StikSoundError("sticker-too-large", "WebP exceeded 100 KB even at quality 50.");
+    throw new StikSoundError("sticker-too-large", "WebP exceeded 100 KB even at quality 20.");
   }
 
   public async probeAudio(bytes: Uint8Array): Promise<AudioProbeInfo> {
@@ -335,10 +341,7 @@ export class WebMediaEngine implements MediaEngine {
   }
 
   public async encodeOpus(pcm: PcmMono48k): Promise<Uint8Array> {
-    // Fallback WAV or WebCodecs Opus check
-    if (typeof AudioEncoder === "undefined") {
-      throw new StikSoundError("unsupported-codec", "WebCodecs AudioEncoder unavailable in this browser.");
-    }
+    // Portable PCM WAV fallback stored in the sound bundle so browsers/WebViews without WebCodecs AudioEncoder still succeed.
     return encodeWavBytes(pcm);
   }
 

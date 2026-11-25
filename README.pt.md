@@ -53,7 +53,12 @@ O StikSound combina **uma imagem quadrada** e **um trecho de áudio** em um arqu
 - Suporta **9 idiomas integrados na interface** (`ES`, `EN`, `PT`, `FR`, `DE`, `IT`, `RU`, `ZH`, `AR`) no menu `⋯`.
 - Exporta **MP4** compatível, **WebM com transparência**, pacotes/projetos **`.stiksound.zip`** ou **WebP estático** (`<= 100 KB`).
 
-> **Nota importante sobre o WhatsApp:** O MP4 exportado é um vídeo comum, não uma figurinha nativa. Colar ou compartilhar no chat envia como vídeo. Apenas em algumas contas beta do Android (não documentadas oficialmente) é possível testar *Criar figurinha* escolhendo o vídeo na galeria, onde o WhatsApp decide a duração e o áudio. O perfil experimental `native-sound-sticker` segue desabilitado.
+> [!WARNING]
+> **Compatibilidade atual com o WhatsApp (onde e como enviar):**
+> - **Atualmente, enviar o MP4 como figurinha com som só funciona diretamente no Android com WhatsApp Beta**, e **não funciona em nenhum outro dispositivo ou plataforma** (não funciona no **WhatsApp Desktop para Windows/macOS** —nem normal nem beta—, nem no **WhatsApp Web**, nem no **iPhone / iOS**).
+> - Mesmo sendo *Beta tester* no Android, a Meta libera esse recurso de forma **gradual por conta no servidor**: se sua conta ainda não recebeu a ativação, o WhatsApp não permitirá criar figurinhas com áudio a partir de vídeo.
+> - **Como testar no Android Beta:** salve o MP4 na galeria → abra uma conversa no WhatsApp Android Beta → ícone de figurinhas → **Criar** (`+`) → escolha o vídeo MP4 na galeria. Colar ou compartilhar o MP4 direto no chat sempre o envia como um vídeo curto normal.
+> - O perfil `native-sound-sticker` segue desabilitado pois o WhatsApp ainda não oferece API pública para figurinhas com som.
 
 ---
 

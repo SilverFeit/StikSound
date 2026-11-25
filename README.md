@@ -82,7 +82,12 @@ Concretamente permite:
 - Exportar un **MP4 compatible**, un **WebM con transparencia**, un **paquete ZIP** o un **WebP estático**.
 - Guardar y reabrir proyectos `.stiksound.zip` con la imagen, el audio y la configuración del recorte.
 
-> **Nota importante sobre WhatsApp:** El MP4 exportado es un video, no un sticker. Pegarlo en el chat lo envía como video y no lo agrega a los stickers. En algunas cuentas de la beta de Android se puede probar Crear sticker eligiendo ese video en la galería; la duración y el audio los decide WhatsApp, y esa beta no está documentada de forma oficial. El perfil `native-sound-sticker` sigue deshabilitado.
+> [!WARNING]
+> **Compatibilidad actual con WhatsApp (dónde y cómo subirlos):**
+> - **A día de hoy, subir el MP4 como sticker con sonido solo funciona directamente desde Android con WhatsApp Beta**, y **no funciona en ningún otro dispositivo ni plataforma** (no sirve en **WhatsApp para PC Windows/macOS** —ni normal ni beta—, ni en **WhatsApp Web**, ni en **iPhone / iOS**).
+> - Incluso siendo *Beta tester* en Android, Meta despliega esta función de forma **gradual desde servidor por cuenta**: si tu cuenta aún no la tiene activada, WhatsApp lo importará sin sonido o no permitirá crear el sticker desde video.
+> - **Cómo probarlo en Android Beta:** descarga el MP4 a tu galería → abre un chat en WhatsApp Android Beta → ícono de stickers → **Crear** (`+`) → elige el video MP4 de la galería. Pegar o compartir el MP4 directamente en un chat siempre lo enviará como un video corto normal.
+> - El perfil `native-sound-sticker` sigue deshabilitado porque WhatsApp no ofrece todavía una API pública para stickers con audio.
 
 ---
 
@@ -193,8 +198,8 @@ Límites de seguridad para imágenes:
 | --- | --- | --- |
 | MP4 | Máxima compatibilidad | Video cuadrado con fondo sólido y audio AAC cuando WebCodecs está disponible. |
 | WebM | Alta calidad/transparencia | Video VP9 con alfa y audio Opus cuando WebCodecs está disponible. |
-| ZIP `.stiksound.zip` | Paquete portable/proyecto | Imagen, audio y metadatos del proyecto o paquete. |
-| WebP | Sticker estático | Una imagen `1:1` sin audio, optimizada para entrar en el límite de 100 KB. |
+| ZIP `.stiksound.zip` | Paquete portable/proyecto | Imagen (`sticker.webp` del primer fotograma), audio (`sound.ogg`) y metadatos (`manifest.json`). |
+| WebP | Sticker estático | Una imagen `1:1` sin audio (`<= 100 KB`). No admite GIFs animados ni videos (usa MP4/WebM o ZIP). |
 
 La duración del video exportado sigue al fragmento de audio seleccionado, con una tolerancia de validación de ±50 ms.
 

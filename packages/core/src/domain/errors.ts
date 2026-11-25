@@ -1,5 +1,6 @@
 export type StikSoundErrorCode =
   | "unsupported-image"
+  | "animated-webp-unsupported"
   | "unsupported-video"
   | "unsupported-audio"
   | "unsupported-codec"
@@ -90,6 +91,44 @@ export const ERROR_CATALOG: Record<StikSoundErrorCode, Record<LocaleCode, Locali
     ar: {
       title: "هذا الملف ليس صورة مدعومة (استخدم PNG أو WebP أو JPG أو GIF).",
       action: "الصق صورة أخرى أو اسحب ملف PNG أو GIF."
+    }
+  },
+  "animated-webp-unsupported": {
+    es: {
+      title: "Un sticker animado (GIF o video) no se puede exportar como WebP estático.",
+      action: "Descarga el video MP4/WebM (5 s o 10 s), o elige el paquete ZIP para usar el primer fotograma."
+    },
+    en: {
+      title: "An animated sticker (GIF or video) cannot be exported as a static WebP.",
+      action: "Download the MP4/WebM video (5s or 10s), or choose the ZIP bundle to use the first frame."
+    },
+    pt: {
+      title: "Um sticker animado (GIF ou vídeo) não pode ser exportado como WebP estático.",
+      action: "Baixe o vídeo MP4/WebM (5 s ou 10 s) ou escolha o pacote ZIP para usar o primeiro quadro."
+    },
+    fr: {
+      title: "Un sticker animé (GIF ou vidéo) ne peut pas être exporté en WebP statique.",
+      action: "Téléchargez la vidéo MP4/WebM (5 s ou 10 s), ou choisissez l'archive ZIP pour utiliser la première image."
+    },
+    de: {
+      title: "Ein animierter Sticker (GIF oder Video) kann nicht als statisches WebP exportiert werden.",
+      action: "Lade das MP4-/WebM-Video (5 s oder 10 s) herunter oder wähle das ZIP-Paket für das erste Bild."
+    },
+    it: {
+      title: "Uno sticker animato (GIF o video) non può essere esportato come WebP statico.",
+      action: "Scarica il video MP4/WebM (5 s o 10 s), oppure scegli il pacchetto ZIP per usare il primo fotogramma."
+    },
+    ru: {
+      title: "Анимированный стикер (GIF или видео) нельзя экспортировать как статичный WebP.",
+      action: "Скачайте видео MP4/WebM (5 с или 10 с) или выберите ZIP-пакет, чтобы использовать первый кадр."
+    },
+    zh: {
+      title: "动态贴纸（GIF 或视频）无法导出为静态 WebP。",
+      action: "请下载 MP4/WebM 视频（5 秒或 10 秒），或选择 ZIP 项目包以使用首帧图像。"
+    },
+    ar: {
+      title: "لا يمكن تصدير الملصق المتحرك (GIF أو فيديو) كملصق WebP ثابت.",
+      action: "نزّل فيديو MP4/WebM (5 أو 10 ثوانٍ)، أو اختر حزمة ZIP لاستخدام الإطار الأول."
     }
   },
   "unsupported-audio": {

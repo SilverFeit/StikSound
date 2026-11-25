@@ -387,5 +387,77 @@ describe("packages/media-web gif resource limits", () => {
     const decoded = decodeGifFramesRgba(gif);
     expect(Array.from(decoded[1]!.rgba.slice(4, 8))).toEqual([255, 0, 0, 255]);
   });
+
+  it("zips and unzips sound-bundle entries (manifest.json, sticker.webp, sound.ogg) and encodes audio without AudioEncoder (Issue #12)", async () => {
+    const engine = new WebMediaEngine();
+    const samples = new Float32Array(48000).fill(0.1);
+    const audioBytes = await engine.encodeOpus({
+      sampleRate: 48000,
+      channels: 1,
+      samples,
+      durationMs: 1_000
+    });
+    expect(audioBytes.byteLength).toBeGreaterThan(44);
+
+    const zipBytes = await engine.zip([
+      { path: "manifest.json", bytes: new TextEncoder().encode('{"schema_version":"1.0"}') },
+      { path: "sticker.webp", bytes: new Uint8Array([0x52, 0x49, 0x46, 0x46]) },
+      { path: "sound.ogg", bytes: audioBytes }
+    ]);
+    const entries = await engine.unzip(zipBytes);
+    expect(entries.map((e) => e.path).sort()).toEqual(["manifest.json", "sound.ogg", "sticker.webp"]);
+
+    // Still rejects arbitrary root files and traversal
+    await expect(engine.zip([{ path: "evil.txt", bytes: new Uint8Array([1]) }])).rejects.toThrowError(
+      /package-invalid/
+    );
+    await expect(engine.zip([{ path: "../sticker.webp", bytes: new Uint8Array([1]) }])).rejects.toThrowError(
+      /package-invalid/
+    );
+  });
+
+  it("rejects non-WebP canvas fallback (e.g. Safari/WebKit returning PNG) and steps quality down below 0.5 in encodeWebp", async () => {
+    const engine = new WebMediaEngine();
+    const frame = { width: 4, height: 4, data: new Uint8Array(4 * 4 * 4) };
+    const origOffscreen = globalThis.OffscreenCanvas;
+    const origImageData = globalThis.ImageData;
+
+    try {
+      (globalThis as unknown as { ImageData: unknown }).ImageData = class {
+        constructor(public data: Uint8ClampedArray, public width: number, public height: number) {}
+      };
+
+      // Case 1: Safari/WebKit returns image/png when image/webp is requested -> throws unsupported-codec
+      (globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = class {
+        getContext() {
+          return { putImageData() {} };
+        }
+        async convertToBlob() {
+          return new Blob([new Uint8Array(100)], { type: "image/png" });
+        }
+      };
+      await expect(engine.encodeWebp(frame)).rejects.toThrowError(/unsupported-codec/);
+
+      // Case 2: Large WebP only fits at quality 0.3 -> succeeds without throwing sticker-too-large
+      const seenQualities: number[] = [];
+      (globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = class {
+        getContext() {
+          return { putImageData() {} };
+        }
+        async convertToBlob(opts?: { type?: string; quality?: number }) {
+          const q = opts?.quality ?? 1;
+          seenQualities.push(q);
+          const size = q <= 0.3 ? 80_000 : 120_000;
+          return new Blob([new Uint8Array(size)], { type: "image/webp" });
+        }
+      };
+      const webp = await engine.encodeWebp(frame);
+      expect(webp.byteLength).toBe(80_000);
+      expect(seenQualities).toContain(0.3);
+    } finally {
+      (globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = origOffscreen;
+      (globalThis as unknown as { ImageData: unknown }).ImageData = origImageData;
+    }
+  });
 });
 

@@ -418,7 +418,7 @@ textarea {
   top: 56px;
   right: 14px;
   z-index: 20;
-  width: 250px;
+  width: 268px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -427,6 +427,15 @@ textarea {
   flex-direction: column;
   gap: 10px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.stik-popover-note {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
 }
 
 .stik-popover-label,

@@ -53,7 +53,12 @@ StikSound combines **a square image** and **an audio clip** into a downloadable 
 - Supports **9 built-in UI languages** (`ES`, `EN`, `PT`, `FR`, `DE`, `IT`, `RU`, `ZH`, `AR`) selectable in the `⋯` menu.
 - Exports compatible **MP4**, transparent **WebM**, portable **`.stiksound.zip`** bundles/projects, or static **WebP** (`<= 100 KB`).
 
-> **Important note about WhatsApp:** The exported MP4 is a standard video, not a native animated sticker. Pasting or sharing it in chat sends it as a video. Only some undocumented Android beta accounts allow picking a video via *Create sticker* from the gallery (where WhatsApp controls duration and audio). The experimental `native-sound-sticker` profile remains disabled.
+> [!WARNING]
+> **Current WhatsApp compatibility (where & how to upload):**
+> - **As of today, uploading the exported MP4 as a sound sticker only works directly on Android with WhatsApp Beta**, and **does not work on any other device or platform** (not on **WhatsApp Desktop for Windows/macOS** —neither stable nor beta—, not on **WhatsApp Web**, and not on **iPhone / iOS**).
+> - Even if you are an Android *Beta tester*, Meta rolls this feature out **gradually per account server-side**: if your account does not have the experiment enabled yet, WhatsApp will not allow creating a sound sticker from video.
+> - **How to try on Android Beta:** save the MP4 to your gallery → open a chat in WhatsApp Android Beta → Stickers icon → **Create** (`+`) → pick the MP4 video from your gallery. Pasting or sharing the MP4 straight into a chat sends it as a regular short video.
+> - The `native-sound-sticker` profile remains disabled because WhatsApp does not yet offer a public API for native sound stickers.
 
 ---
 

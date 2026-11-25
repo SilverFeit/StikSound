@@ -300,7 +300,7 @@ describe("StikSoundMinimalApp UI", () => {
         providers={[]}
         shell={{ saveArtifact: vi.fn() }}
         initialLocale="es"
-        appVersion="1.1.2"
+        appVersion="1.1.3"
       />
     );
 
@@ -327,10 +327,45 @@ describe("StikSoundMinimalApp UI", () => {
     // Open About & licenses modal
     fireEvent.click(screen.getByText("Sobre e licenças"));
     const aboutModal = screen.getByTestId("about-modal");
-    expect(aboutModal.textContent).toContain("Version 1.1.2");
+    expect(aboutModal.textContent).toContain("Version 1.1.3");
     expect(aboutModal.textContent).toContain("MIT");
     expect(aboutModal.textContent).toContain("Apache-2.0");
     expect(aboutModal.textContent).toContain("Copyright © 2026 SilverFeit");
     expect(aboutModal.textContent).toContain("symphonia");
+  });
+
+  it("shows clear animated-webp-unsupported error on animated GIF and WhatsApp Android Beta notice in download picker (Issues #12 & #13)", async () => {
+    render(
+      <StikSoundMinimalApp
+        engine={createTestEngine(512, 512, true)}
+        providers={[]}
+        shell={{ saveArtifact: vi.fn() }}
+        initialLocale="es"
+      />
+    );
+
+    // Load animated GIF via file input
+    const appShell = screen.getByTestId("stiksound-minimal-app");
+    const stickerInput = appShell.querySelector('input[accept*="image/png"]') as HTMLInputElement;
+    const gifBytes = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
+    const gifFile = new File([gifBytes], "anim.gif", { type: "image/gif" });
+    Object.defineProperty(gifFile, "arrayBuffer", { value: async () => gifBytes.buffer });
+    fireEvent.change(stickerInput, { target: { files: [gifFile] } });
+    await waitFor(() => expect(screen.getByTestId("sticker-loaded-badge")).toBeTruthy());
+
+    // Open download picker -> shows WhatsApp Android Beta compatibility note (Issue #13)
+    fireEvent.click(screen.getByTestId("download-btn"));
+    const note = screen.getByTestId("download-whatsapp-note");
+    expect(note.textContent ?? "").toMatch(/Android con WhatsApp Beta/i);
+    expect(note.textContent ?? "").toMatch(/PC/i);
+
+    // Click Static WebP on an animated GIF -> explains animated sticker cannot be static WebP (Issue #12)
+    fireEvent.click(screen.getByTestId("download-fmt-standard-webp"));
+    await waitFor(() => expect(screen.getByTestId("error-banner")).toBeTruthy());
+    const errText = screen.getByTestId("error-banner").textContent ?? "";
+    expect(errText).toMatch(/sticker animado/i);
+    expect(errText).toMatch(/MP4/i);
+    expect(errText).toMatch(/ZIP/i);
+    expect(errText).not.toMatch(/no es una imagen compatible/i);
   });
 });

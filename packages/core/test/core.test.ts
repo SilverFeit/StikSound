@@ -4,6 +4,7 @@ import {
   ProjectController,
   SUPPORTED_LOCALES,
   StikSoundError,
+  assertSafeZipEntryPath,
   computeSquareCrop,
   createProject,
   defaultTrimForDuration,
@@ -330,5 +331,19 @@ describe("packages/core domain and use cases", () => {
       }
       expect(err.getLocalized(loc).title.length).toBeGreaterThan(0);
     }
+  });
+
+  it("allows sound-bundle zip paths while blocking unsafe entries and throws animated-webp-unsupported for animated GIFs (Issue #12)", async () => {
+    expect(() => assertSafeZipEntryPath("manifest.json")).not.toThrow();
+    expect(() => assertSafeZipEntryPath("sticker.webp")).not.toThrow();
+    expect(() => assertSafeZipEntryPath("sound.ogg")).not.toThrow();
+    expect(() => assertSafeZipEntryPath("assets/stk_01.gif")).not.toThrow();
+    expect(() => assertSafeZipEntryPath("../sticker.webp")).toThrowError(/package-invalid/);
+    expect(() => assertSafeZipEntryPath("other.txt")).toThrowError(/package-invalid/);
+
+    const ctrl = new ProjectController(makeFakeEngine());
+    let proj = createProject("AnimGif");
+    proj = await ctrl.importSticker(proj, new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), "anim.gif");
+    await expect(ctrl.exportProject(proj, "standard-webp")).rejects.toThrowError(/animated-webp-unsupported/);
   });
 });

@@ -144,6 +144,8 @@ jobs:
             - Recorte de audio local (`MP3`/`WAV`/`OGG`/`M4A`) o enlace de **MyInstants** con selector **`5s | 10s`**.
             - Interfaz multilingüe en **9 idiomas** (`ES`, `EN`, `PT`, `FR`, `DE`, `IT`, `RU`, `ZH`, `AR`), diálogo *Acerca de y licencias* renovado y botón **`➔`** / **`⬇`** para previsualizar, copiar o descargar (`MP4`, `WebM`, `ZIP` o `WebP`).
 
+            > **Compatibilidad actual con WhatsApp:** A día de hoy, subir el MP4 como sticker con sonido **solo funciona directamente desde Android con WhatsApp Beta** (*Stickers → Crear → elegir MP4 en galería*, sujeto a activación gradual de Meta por cuenta). **Hoy no funciona en WhatsApp PC (normal ni beta), WhatsApp Web ni iPhone (iOS).**
+
             ---
 
             <details>
@@ -162,6 +164,8 @@ jobs:
             - Zero-click `1:1` crop framing, direct matte/transparency selector, and `5s | 10s` audio duration toggle.
             - **9 built-in UI languages** (`ES`, `EN`, `PT`, `FR`, `DE`, `IT`, `RU`, `ZH`, `AR`) and updated About & licenses dialog.
 
+            > **WhatsApp compatibility today:** Uploading the MP4 as a sound sticker **only works directly on Android with WhatsApp Beta** (*Stickers → Create → pick MP4 from gallery*, subject to Meta's gradual per-account rollout). **It does not currently work on WhatsApp PC (stable or beta), WhatsApp Web, or iPhone (iOS).**
+
             </details>
 
             <details>
@@ -179,6 +183,8 @@ jobs:
             - Suporte para **PNG com transparência**, **WebP**, **JPG** e **GIF animado** (em loop sincronizado com a prévia).
             - Enquadramento `1:1` sem clique, seletor direto de fundo/transparência e botão de duração **`5s | 10s`**.
             - **9 idiomas na interface** (`ES`, `EN`, `PT`, `FR`, `DE`, `IT`, `RU`, `ZH`, `AR`) e janela Sobre e licenças atualizada.
+
+            > **Compatibilidade atual no WhatsApp:** Enviar o MP4 como figurinha com som **só funciona diretamente no Android com WhatsApp Beta** (*Figurinhas → Criar → escolher MP4 na galeria*, sujeito à liberação gradual da Meta por conta). **Hoje não funciona no WhatsApp PC (normal ou beta), WhatsApp Web nem iPhone (iOS).**
 
             </details>
           files: artifacts/*

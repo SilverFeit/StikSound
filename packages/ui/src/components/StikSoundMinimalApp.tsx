@@ -107,7 +107,7 @@ export const StikSoundMinimalApp: React.FC<StikSoundMinimalAppProps> = ({
   initialState,
   platform,
   labelOverrides,
-  appVersion = "1.1.2"
+  appVersion = "1.1.3"
 }) => {
   const allowTransparent = platform?.transparentVideo !== false;
   const allowMyInstantsUrl = platform?.myInstantsUrl !== false;
@@ -665,6 +665,9 @@ export const StikSoundMinimalApp: React.FC<StikSoundMinimalAppProps> = ({
               {copy.downloadFmtWebp}
             </button>
           </div>
+          <p className="stik-popover-note" data-testid="download-whatsapp-note">
+            {copy.downloadWhatsappNote}
+          </p>
         </div>
       )}
 

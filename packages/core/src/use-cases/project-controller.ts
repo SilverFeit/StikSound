@@ -554,7 +554,10 @@ export class ProjectController {
 
     if (profileId === "standard-webp") {
       if (sticker.animated) {
-        throw new StikSoundError("unsupported-image", "Static WebP export does not support animated stickers yet.");
+        throw new StikSoundError(
+          "animated-webp-unsupported",
+          "Static WebP export does not support animated stickers yet."
+        );
       }
       const frame = await this.engine.renderSticker(stickerBytes, sticker.edit);
       const webpBytes = await this.engine.encodeWebp(frame);

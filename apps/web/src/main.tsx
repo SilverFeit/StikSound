@@ -99,7 +99,8 @@ const webLabels: Record<LocaleCode, Partial<UiLabels>> = {
     downloadBtnLabel: "Guardar",
     downloadChooseFormat: "Elige qué guardar:",
     downloadFmtMp4: "Video MP4 (5s / 10s)",
-    exportSuccessVideo: "Listo. Si no elegiste dónde guardarlo, búscalo en Archivos → Descargas.",
+    exportSuccessVideo:
+      "Listo (Archivos → Descargas). A día de hoy, subir el MP4 como sticker con sonido solo funciona directamente en Android con WhatsApp Beta (no en PC, Web ni iPhone).",
     aboutRights:
       "Versión web. Todo se procesa en tu teléfono; nada se sube a internet. Para usar un sonido de MyInstants, descárgalo primero desde Safari y luego elígelo con el botón de audio. El video dura como máximo 5 o 10 segundos, según el botón de la barra (por defecto, 10).",
     ...(isTouch
@@ -119,7 +120,8 @@ const webLabels: Record<LocaleCode, Partial<UiLabels>> = {
     downloadBtnLabel: "Save",
     downloadChooseFormat: "Choose what to save:",
     downloadFmtMp4: "MP4 video (5s / 10s)",
-    exportSuccessVideo: "Done. If you didn't pick a place, look in Files → Downloads.",
+    exportSuccessVideo:
+      "Done (Files → Downloads). As of today, uploading the MP4 as a sound sticker only works directly on Android with WhatsApp Beta (not on PC, Web, or iPhone).",
     aboutRights:
       "Web version. Everything runs on your phone; nothing is uploaded. To use a MyInstants sound, download it in Safari first, then pick it with the sound button. The video is at most 5 or 10 seconds, chosen with the bar button (10 by default).",
     ...(isTouch
@@ -139,7 +141,8 @@ const webLabels: Record<LocaleCode, Partial<UiLabels>> = {
     downloadBtnLabel: "Salvar",
     downloadChooseFormat: "Escolha o que salvar:",
     downloadFmtMp4: "Vídeo MP4 (5s / 10s)",
-    exportSuccessVideo: "Pronto. Se você não escolheu um local, procure em Arquivos → Downloads.",
+    exportSuccessVideo:
+      "Pronto (Arquivos → Downloads). Hoje, enviar o MP4 como figurinha com som só funciona diretamente no Android com WhatsApp Beta (não no PC, Web nem iPhone).",
     aboutRights:
       "Versão web. Tudo é processado no seu aparelho; nada é enviado à internet. Para usar um som do MyInstants, baixe o arquivo primeiro e escolha-o pelo botão de áudio. O vídeo dura no máximo 5 ou 10 segundos (10 por padrão).",
     ...(isTouch
