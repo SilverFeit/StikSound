@@ -1,0 +1,21 @@
+{
+  "name": "@stiksound/media-node",
+  "version": "1.0.0",
+  "license": "MIT OR Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jsquash/webp": "^1.5.0",
+    "@stiksound/core": "*",
+    "@stiksound/media-web": "*",
+    "fflate": "^0.8.2"
+  }
+}
