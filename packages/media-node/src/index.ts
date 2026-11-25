@@ -5,3 +5,4 @@ export * from "./webp";
 export * from "./image";
 export * from "./audio";
 export * from "./video";
+export * from "./node-media-engine";
