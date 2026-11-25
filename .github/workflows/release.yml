@@ -106,8 +106,54 @@ jobs:
           name: macos-assets
           path: release-assets/*
 
+  build-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies and build CLI bundle
+        run: |
+          npm ci
+          npm run build --workspace=@stiksound/cli
+      - name: Stage portable CLI runtime dependencies
+        shell: bash
+        run: |
+          STAGE_DEPS="apps/cli/dist-release/prod_stage"
+          mkdir -p "$STAGE_DEPS"
+          node -e '
+            const fs = require("node:fs");
+            const pkg = JSON.parse(fs.readFileSync("apps/cli/package.json", "utf8"));
+            const runtimeDeps = {};
+            for (const name of ["@jsquash/webp", "@modelcontextprotocol/sdk", "zod"]) {
+              runtimeDeps[name] = pkg.dependencies[name];
+            }
+            fs.writeFileSync("apps/cli/dist-release/prod_stage/package.json", JSON.stringify({
+              name: "stiksound-cli-runtime",
+              private: true,
+              dependencies: runtimeDeps
+            }, null, 2));
+          '
+          npm --prefix "$STAGE_DEPS" install --omit=dev --no-audit --no-fund
+          mv "$STAGE_DEPS/node_modules" apps/cli/dist-release/prod_modules
+          node apps/cli/build.mjs --pack-release
+      - name: Package cross-platform CLI archive
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$TAG" != v* ]]; then TAG="${{ github.event.inputs.tag }}"; fi
+          VERSION="${TAG#v}"
+          mkdir -p release-assets
+          (cd apps/cli/dist-release && zip -r "../../../release-assets/StikSound-${VERSION}-cli.zip" stiksound-cli)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-assets
+          path: release-assets/*
+
   publish-release:
-    needs: [build-extension, build-windows, build-macos]
+    needs: [build-extension, build-windows, build-macos, build-cli]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
