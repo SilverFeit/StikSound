@@ -46,6 +46,7 @@ Lee esta guía en orden al comenzar a trabajar con la arquitectura e implementac
 | [decisions/002-stack.md](decisions/002-stack.md) | Tauri, Rust, React, Chrome |
 | [decisions/003-export-and-whatsapp.md](decisions/003-export-and-whatsapp.md) | Por qué la exportación está desacoplada |
 | [decisions/004-extension-boundary.md](decisions/004-extension-boundary.md) | Qué puede y qué no puede hacer la extensión |
+| [decisions/005-node-engine-and-mcp.md](decisions/005-node-engine-and-mcp.md) | Motor de medios en Node y servidor MCP local |
 
 ## Calidad
 
@@ -65,7 +66,7 @@ Read in this order when starting implementation:
 - **Plan:** [MASTER-TODO.md](MASTER-TODO.md) · [roadmap.md](roadmap.md) · [risks.md](risks.md)
 - **Product & Requirements:** [product/product-brief.md](product/product-brief.md) · [functional-requirements.md](requirements/functional-requirements.md) · [non-functional-requirements.md](requirements/non-functional-requirements.md) · [acceptance-criteria.md](requirements/acceptance-criteria.md)
 - **Specifications:** [platforms.md](specifications/platforms.md) · [user-flows.md](specifications/user-flows.md) · [import.md](specifications/import.md) · [myinstants.md](specifications/myinstants.md) · [editors.md](specifications/editors.md) · [data-model.md](specifications/data-model.md) · [export.md](specifications/export.md) · [whatsapp.md](specifications/whatsapp.md) · [security.md](specifications/security.md) · [stiksound-project-1.0.schema.json](specifications/schemas/stiksound-project-1.0.schema.json)
-- **Architecture & Decisions:** [architecture/overview.md](architecture/overview.md) · [architecture/repository-layout.md](architecture/repository-layout.md) · [001-product-scope.md](decisions/001-product-scope.md) · [002-stack.md](decisions/002-stack.md) · [003-export-and-whatsapp.md](decisions/003-export-and-whatsapp.md) · [004-extension-boundary.md](decisions/004-extension-boundary.md)
+- **Architecture & Decisions:** [architecture/overview.md](architecture/overview.md) · [architecture/repository-layout.md](architecture/repository-layout.md) · [001-product-scope.md](decisions/001-product-scope.md) · [002-stack.md](decisions/002-stack.md) · [003-export-and-whatsapp.md](decisions/003-export-and-whatsapp.md) · [004-extension-boundary.md](decisions/004-extension-boundary.md) · [005-node-engine-and-mcp.md](decisions/005-node-engine-and-mcp.md)
 - **QA:** [qa/test-plan.md](qa/test-plan.md)
 
 </details>
@@ -80,7 +81,7 @@ Leia nesta ordem ao iniciar a implementação:
 - **Planejamento:** [MASTER-TODO.md](MASTER-TODO.md) · [roadmap.md](roadmap.md) · [risks.md](risks.md)
 - **Produto e Requisitos:** [product/product-brief.md](product/product-brief.md) · [functional-requirements.md](requirements/functional-requirements.md) · [non-functional-requirements.md](requirements/non-functional-requirements.md) · [acceptance-criteria.md](requirements/acceptance-criteria.md)
 - **Especificações:** [platforms.md](specifications/platforms.md) · [user-flows.md](specifications/user-flows.md) · [import.md](specifications/import.md) · [myinstants.md](specifications/myinstants.md) · [editors.md](specifications/editors.md) · [data-model.md](specifications/data-model.md) · [export.md](specifications/export.md) · [whatsapp.md](specifications/whatsapp.md) · [security.md](specifications/security.md) · [stiksound-project-1.0.schema.json](specifications/schemas/stiksound-project-1.0.schema.json)
-- **Arquitetura e Decisões:** [architecture/overview.md](architecture/overview.md) · [architecture/repository-layout.md](architecture/repository-layout.md) · [001-product-scope.md](decisions/001-product-scope.md) · [002-stack.md](decisions/002-stack.md) · [003-export-and-whatsapp.md](decisions/003-export-and-whatsapp.md) · [004-extension-boundary.md](decisions/004-extension-boundary.md)
+- **Arquitetura e Decisões:** [architecture/overview.md](architecture/overview.md) · [architecture/repository-layout.md](architecture/repository-layout.md) · [001-product-scope.md](decisions/001-product-scope.md) · [002-stack.md](decisions/002-stack.md) · [003-export-and-whatsapp.md](decisions/003-export-and-whatsapp.md) · [004-extension-boundary.md](decisions/004-extension-boundary.md) · [005-node-engine-and-mcp.md](decisions/005-node-engine-and-mcp.md)
 - **Qualidade (QA):** [qa/test-plan.md](qa/test-plan.md)
 
 </details>

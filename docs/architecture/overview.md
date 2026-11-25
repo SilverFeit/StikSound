@@ -2,14 +2,16 @@
 
 ## Summary
 
-One domain, two media engines, three shells.
+One domain, three media engines, four shells.
 
 ```text
 Windows app ─┐
-macOS app  ──┼─► use cases ─► Project model ─► export profiles
-Chrome ext ──┘        │
+macOS app  ──┤
+Chrome ext ──┼─► use cases ─► Project model ─► export profiles
+MCP server ──┘        │
                       ├─ DesktopMediaEngine (Rust)
-                      └─ WebMediaEngine (browser)
+                      ├─ WebMediaEngine (browser)
+                      └─ NodeMediaEngine (Node + local FFmpeg)
 ```
 
 The use cases do not know which shell called them. Each shell binds a media engine at startup.
@@ -18,12 +20,12 @@ The use cases do not know which shell called them. Each shell binds a media engi
 
 | Layer | Responsibility | Lives in |
 | --- | --- | --- |
-| Shell | Windows, menus, file dialogs, downloads, webview | `apps/desktop`, `apps/extension` |
+| Shell | Windows, menus, file dialogs, downloads, webview, MCP tools | `apps/desktop`, `apps/extension`, `apps/mcp` |
 | UI | Editor layout, waveform view, copy | `packages/ui` |
 | Use cases | Import, associate, trim, save, export | `packages/core` |
 | Domain | Types, invariants, schema validation | `packages/core` |
 | Providers | MyInstants extraction and URL policy | `packages/providers` |
-| Media engines | Decode, fit, peaks, encode, zip | `crates/*` and `packages/media-web` |
+| Media engines | Decode, fit, peaks, encode, zip | `crates/*`, `packages/media-web` and `packages/media-node` |
 | Storage | Project directory, SQLite index, IndexedDB | shell adapters |
 
 ## Use cases
@@ -103,6 +105,19 @@ Extension service worker
 ```
 
 The service worker does not decode media. Fetching MyInstants may live in the editor page so the user can see failures. The page still uses the provider module and the allowlist.
+
+## MCP process
+
+```text
+MCP client (Claude Code, Codex, Claude Desktop)
+  └─ stdio
+       └─ apps/mcp
+            └─ packages/core + NodeMediaEngine
+                 ├─ ffmpeg / ffprobe found on the machine
+                 └─ WebP encoder in WebAssembly
+```
+
+The server has no window and no state between calls. A tool call reads the files named by absolute path, runs the use cases in memory and writes the result to the output folder. `NodeMediaEngine` starts FFmpeg with an argument array built in code, never through a shell. See decision 005.
 
 ## Export pipeline
 
