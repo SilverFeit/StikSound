@@ -170,7 +170,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref_name, 'v') && github.ref_name || github.event.inputs.tag }}
-          name: StikSound ${{ startsWith(github.ref_name, 'v') && github.ref_name || github.event.inputs.tag }} — Windows, macOS & Chrome Extension
+          name: StikSound ${{ startsWith(github.ref_name, 'v') && github.ref_name || github.event.inputs.tag }} — Windows, macOS, Chrome Extension & CLI
           generate_release_notes: true
           body: |
             ## 🌐 Versión Web (sin instalación) y Descargas (100% local, sin FFmpeg)
@@ -192,6 +192,14 @@ jobs:
 
             > **Compatibilidad actual con WhatsApp:** A día de hoy, subir el MP4 como sticker con sonido **solo funciona directamente desde Android con WhatsApp Beta** (*Stickers → Crear → elegir MP4 en galería*, sujeto a activación gradual de Meta por cuenta). **Hoy no funciona en WhatsApp PC (normal ni beta), WhatsApp Web ni iPhone (iOS).**
 
+            ### CLI headless (asset aparte)
+
+            Escritorio, extensión y web **no incluyen ni necesitan FFmpeg**. El CLI es otro archivo de este release y no entra en esos instaladores.
+
+            | Archivo | Cómo usar |
+            | --- | --- |
+            | `StikSound-*-cli.zip` | Requiere **Node.js 22** y **FFmpeg** en el sistema. Descomprime y ejecuta `bin/stiksound` (macOS y Linux) o `bin\stiksound.cmd` (Windows). `stiksound mcp` arranca el servidor MCP. No modifica el núcleo de las apps gráficas. |
+
             ---
 
             <details>
@@ -212,6 +220,14 @@ jobs:
 
             > **WhatsApp compatibility today:** Uploading the MP4 as a sound sticker **only works directly on Android with WhatsApp Beta** (*Stickers → Create → pick MP4 from gallery*, subject to Meta's gradual per-account rollout). **It does not currently work on WhatsApp PC (stable or beta), WhatsApp Web, or iPhone (iOS).**
 
+            #### Headless CLI (separate asset)
+
+            Desktop, extension, and web **do not bundle or require FFmpeg**. The CLI is a separate file in this release and is not inside those installers.
+
+            | File | How to use |
+            | --- | --- |
+            | `StikSound-*-cli.zip` | Requires **Node.js 22** and **FFmpeg** on the machine. Unzip and run `bin/stiksound` (macOS and Linux) or `bin\stiksound.cmd` (Windows). `stiksound mcp` starts the MCP server. It does not change the GUI apps. |
+
             </details>
 
             <details>
@@ -231,6 +247,14 @@ jobs:
             - **9 idiomas na interface** (`ES`, `EN`, `PT`, `FR`, `DE`, `IT`, `RU`, `ZH`, `AR`) e janela Sobre e licenças atualizada.
 
             > **Compatibilidade atual no WhatsApp:** Enviar o MP4 como figurinha com som **só funciona diretamente no Android com WhatsApp Beta** (*Figurinhas → Criar → escolher MP4 na galeria*, sujeito à liberação gradual da Meta por conta). **Hoje não funciona no WhatsApp PC (normal ou beta), WhatsApp Web nem iPhone (iOS).**
+
+            #### CLI headless (arquivo separado)
+
+            Desktop, extensão e web **não incluem nem exigem FFmpeg**. O CLI é outro arquivo deste release e não entra nesses instaladores.
+
+            | Arquivo | Como usar |
+            | --- | --- |
+            | `StikSound-*-cli.zip` | Exige **Node.js 22** e **FFmpeg** na máquina. Extraia e execute `bin/stiksound` (macOS e Linux) ou `bin\stiksound.cmd` (Windows). `stiksound mcp` inicia o servidor MCP. Não altera os apps gráficos. |
 
             </details>
           files: artifacts/*
