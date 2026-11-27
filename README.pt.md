@@ -9,11 +9,11 @@
 [![Usar na Web](https://img.shields.io/badge/Usar%20na%20Web-GitHub%20Pages-0ea5e9?style=for-the-badge&logo=githubpages&logoColor=white)](https://silverfeit.github.io/StikSound/)
 [![Baixar](https://img.shields.io/github/v/release/SilverFeit/StikSound?style=for-the-badge&label=Baixar&color=25D366)](https://github.com/SilverFeit/StikSound/releases/latest)
 
-[![Platforms](https://img.shields.io/badge/Platforms-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Chrome-25D366?style=flat-square)](#versão-web-vs-instalar)
+[![Platforms](https://img.shields.io/badge/Platforms-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Chrome%20%7C%20CLI%20%26%20MCP-25D366?style=flat-square)](#versão-web-vs-instalar)
 [![Local Processing](https://img.shields.io/badge/Processamento-100%25%20local-10b981?style=flat-square)](#privacidade-e-segurança)
 [![License](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-6366f1?style=flat-square)](LICENSE-MIT)
 
-[**Usar na Web**](https://silverfeit.github.io/StikSound/) · [**Baixar**](https://github.com/SilverFeit/StikSound/releases/latest) · [**Guia Passo a Passo**](#guia-passo-a-passo) · [**Como Funciona**](#como-funciona-internamente) · [**Desenvolvimento**](#desenvolvimento)
+[**Usar na Web**](https://silverfeit.github.io/StikSound/) · [**Baixar**](https://github.com/SilverFeit/StikSound/releases/latest) · [**CLI e MCP com IA**](#-cli-headless-e-servidor-mcp-local-figurinhas-com-ia) · [**Guia Passo a Passo**](#guia-passo-a-passo) · [**Como Funciona**](#como-funciona-internamente) · [**Desenvolvimento**](#desenvolvimento)
 
 **🌐 Idioma / Language / Idioma:** [**🇪🇸 Español (Principal)**](README.md) · [**🇺🇸 English**](README.en.md) · **🇧🇷 Português**
 
@@ -30,16 +30,19 @@ Você pode usar o **StikSound diretamente no navegador** sem instalar nada (func
 >
 > **Quer colar links diretos do MyInstants?** Por regras de segurança dos navegadores (CORS), o MyInstants bloqueia downloads diretos a partir de páginas web estáticas. Para usar links do MyInstants diretamente, **instale** o [App de Desktop (Windows/macOS) ou a Extensão do Chrome](https://github.com/SilverFeit/StikSound/releases/latest) — ou baixe o MP3 do MyInstants antes e selecione-o na versão web.
 
-| Recurso | 🌐 Versão Web (GitHub Pages) | 💻 App Desktop / 🧩 Extensão Chrome |
-| --- | :---: | :---: |
-| **Instalação necessária** | ❌ Nenhuma ([abrir agora](https://silverfeit.github.io/StikSound/)) | ✅ [Baixar release](https://github.com/SilverFeit/StikSound/releases/latest) |
-| **Processamento 100% local** | ✅ | ✅ |
-| **Stickers PNG / JPG / WebP / GIF** | ✅ | ✅ |
-| **Vídeos curtos (`MP4`, `MOV`, `WebM`) como sticker** | ✅ | — |
-| **Seletor de duração `5s \| 10s`** | ✅ | ✅ |
-| **Áudios locais baixados** | ✅ | ✅ |
-| **Colar links diretos do MyInstants** | ❌ *(baixe o MP3 antes)* | ✅ |
-| **WebM com transparência** | ❌ *(apenas MP4 na web/celular)* | ✅ |
+| Recurso | 🌐 Versão Web (GitHub Pages) | 💻 App Desktop / 🧩 Extensão Chrome | ⌨️ CLI / 🤖 MCP Local |
+| --- | :---: | :---: | :---: |
+| **Instalação necessária** | ❌ Nenhuma ([abrir agora](https://silverfeit.github.io/StikSound/)) | ✅ [Baixar release](https://github.com/SilverFeit/StikSound/releases/latest) | ✅ `StikSound-*-cli.zip` + Node 22 e FFmpeg |
+| **Processamento 100% local** | ✅ | ✅ | ✅ |
+| **Stickers PNG / JPG / WebP / GIF** | ✅ | ✅ | ✅ |
+| **Vídeos curtos (`MP4`, `MOV`, `WebM`) como sticker** | ✅ | — | ✅ |
+| **Stickers gerados a partir de texto (`--text`)** | — | — | ✅ |
+| **Seletor de duração `5s \| 10s`** | ✅ | ✅ | ✅ |
+| **Áudios locais baixados** | ✅ | ✅ | ✅ |
+| **Colar links diretos do MyInstants** | ❌ *(baixe o MP3 antes)* | ✅ | ✅ |
+| **Buscar sons no MyInstants (`search`)** | — | — | ✅ |
+| **WebM com transparência** | ❌ *(apenas MP4 na web/celular)* | ✅ | ✅ |
+| **Integração com assistentes de IA (MCP)** | — | — | ✅ *(Claude, Gemini, Codex, Cursor, VS Code)* |
 
 ---
 
@@ -72,6 +75,59 @@ O StikSound combina **uma imagem quadrada** e **um trecho de áudio** em um arqu
 
 ---
 
+## 🤖 CLI Headless e Servidor MCP Local (Figurinhas com IA)
+
+O StikSound inclui uma **CLI multiplataforma** (`macOS`, `Windows`, `Linux`) com um **servidor MCP (Model Context Protocol) local integrado** (`stiksound mcp`) para criar figurinhas pelo terminal ou conversando com seu assistente de IA, mantendo todo o processamento local.
+
+> [!NOTE]
+> Desktop, Extensão Chrome e Web **não incluem nem exigem FFmpeg**. A CLI é distribuída em separado (`StikSound-*-cli.zip`) e requer **Node.js 22+** e **FFmpeg**. Veja detalhes completos em [apps/cli/README.md](apps/cli/README.md).
+
+### Tools disponíveis no servidor MCP local
+
+| Tool MCP | Tipo | O que faz |
+| --- | :---: | --- |
+| `search_sounds` | Leitura | Busca sons no `myinstants.com` por palavras-chave ou descrição (`query`, `limit`, `locale`) sob a lista estrita HTTPS/SSRF e retorna títulos e `page_url`. |
+| `create_sound_sticker` | Escrita | Combina um arquivo visual (`image_path`) **ou texto renderizado localmente** (`text`, `text_style`: `meme` \| `card` \| `minimal`, `text_color`, `background_color`, `transparent_background`) com `audio_path` ou `myinstants_url`, `trim: "loudest"`, `max_duration_s: 5 \| 10`, perfis `video-mp4`, `video-webm-alpha`, `sound-bundle`, `standard-webp`, `save_project` e cópia para a área de transferência. |
+| `probe_media` | Leitura | Inspeciona imagem, GIF, vídeo, áudio ou `.stiksound.zip` (dimensões, recorte `1:1`, trechos mais altos de `5s`/`10s` e prévia WebP). |
+| `export_project` | Escrita | Reabre um projeto `.stiksound.zip` e reexporta com outro perfil ou duração. |
+| `check_environment` | Leitura | Executa o diagnóstico (`doctor`) de FFmpeg, encoders, WebP WASM e renderizador de texto. |
+
+### ✨ Como criar stickers com IA usando apenas um prompt
+
+- **Descrevendo o emote/personagem + som:**
+  > `"usa @Stiksound quiero un stiker en mp4 de 10 segundos de dio brando con el sonido de omae-wa-mo-shinderu"`
+  >
+  > Como você apenas descreveu o personagem (sem enviar imagem nem pedir busca na web), o assistente **cria a imagem usando o modelo de geração de imagens** da sua IA (ou usa `text` para figurinhas de texto), encontra o som via `search_sounds` e chama `create_sound_sticker` (`profile: "video-mp4"`, `max_duration_s: 10`, `trim: "loudest"`).
+- **Pedindo explicitamente um GIF ou imagem da web (ou enviando um arquivo seu):**
+  > `"Stiksound ahora hazlo pero con un gif de dio brando que encuentres en web"`
+  >
+  > Ao especificar um GIF da web (ou informar o caminho do seu arquivo), o assistente não gera imagem por IA: passa o caminho absoluto do GIF em `image_path` e o StikSound faz o loop quadro a quadro sincronizado com os 10 segundos de áudio.
+
+### 🔌 Como conectar o servidor MCP aos apps mais populares
+
+Todos os blocos abaixo possuem o **botão nativo de copiar** do GitHub no canto superior direito *(o GitHub remove botões HTML/JS customizados por segurança)*. Você também pode rodar `stiksound mcp --print-config` para gerar os templates com seu caminho real.
+
+```json
+{
+  "mcpServers": {
+    "stiksound": {
+      "command": "node",
+      "args": [
+        "/CAMINHO/ABSOLUTO/stiksound-cli/cli.mjs",
+        "mcp"
+      ]
+    }
+  }
+}
+```
+
+- **Claude Desktop:** `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) ou `%APPDATA%\Claude\claude_desktop_config.json` (Windows) · **Claude Code:** `claude mcp add stiksound --scope user -- node "/CAMINHO/ABSOLUTO/stiksound-cli/cli.mjs" mcp`
+- **Gemini CLI:** `~/.gemini/settings.json` ou `gemini mcp add stiksound node "/CAMINHO/ABSOLUTO/stiksound-cli/cli.mjs" mcp` · **Antigravity:** `~/.gemini/antigravity/mcp_config.json`
+- **OpenAI Codex CLI:** `codex mcp add stiksound -- node "/CAMINHO/ABSOLUTO/stiksound-cli/cli.mjs" mcp` (ou `[mcp_servers.stiksound]` em `~/.codex/config.toml`). *(Observação: conectores do ChatGPT na nuvem ainda não executam servidores `stdio` locais; use Codex CLI, VS Code / GitHub Copilot ou Cursor para modelos GPT com MCP local.)*
+- **VS Code / GitHub Copilot (`.vscode/mcp.json`):** use `"servers"` com `"type": "stdio"`, `"command": "node"` e `"args": ["/CAMINHO/ABSOLUTO/stiksound-cli/cli.mjs", "mcp"]`.
+
+---
+
 ## Como funciona internamente
 
 - **Pipeline de imagem e GIF:** Verifica os bytes reais do arquivo, aplica limites contra decompression bombs e consumo excessivo em GIFs (`300` quadros, `64 MiB` canvas, `256 MiB` RGBA acumulado), calcula o recorte 1:1 e agenda o loop dos quadros compatível com a prévia do navegador.
@@ -84,6 +140,7 @@ O StikSound combina **uma imagem quadrada** e **um trecho de áudio** em um arqu
 
 ```text
 apps/
+  cli/           CLI headless (Node 22 + FFmpeg) e servidor MCP local (`stiksound mcp`)
   desktop/       App Tauri para Windows/macOS
   extension/     Extensão Chrome Manifest V3
   web/           App Web / PWA publicado no GitHub Pages
@@ -112,6 +169,11 @@ docs/            Requisitos, arquitetura, especificações e decisões
 ### Extensão Chrome / Edge / Brave
 1. Baixe `StikSound-*-chrome-extension.zip` em [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest) e extraia o arquivo.
 2. Abra `chrome://extensions/`, ative o **Modo do desenvolvedor**, clique em **Carregar sem compactação** e selecione a pasta extraída.
+
+### CLI e Servidor MCP Local (macOS, Windows e Linux)
+1. Instale **Node.js 22+** e **FFmpeg** (`brew install ffmpeg`, `sudo apt install ffmpeg` ou `winget install Gyan.FFmpeg`).
+2. Baixe `StikSound-*-cli.zip` em [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest) e extraia em uma pasta fixa.
+3. Execute `bin/stiksound doctor` (macOS/Linux) ou `bin\stiksound.cmd doctor` (Windows), ou `bin/stiksound mcp --print-config` para gerar os templates MCP.
 
 ---
 
