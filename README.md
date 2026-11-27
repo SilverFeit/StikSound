@@ -168,6 +168,9 @@ Si el sistema operativo o el navegador no permite copiar videos al portapapeles,
 
 ---
 
+<details>
+<summary><strong>Para usuarios avanzados: CLI, servidor MCP, formatos técnicos y arquitectura</strong> (clic para expandir)</summary>
+
 ## 🤖 CLI Headless y Servidor MCP Local (Stickers con IA)
 
 StikSound incluye una **CLI multiplataforma** (`macOS`, `Windows` y `Linux`) con un **servidor MCP (Model Context Protocol) local integrado** (`stiksound mcp`) para crear stickers desde la terminal o directamente conversando con tu asistente de IA favorito, manteniendo el procesamiento 100% local en tu máquina.
@@ -462,6 +465,8 @@ docs/            Iconos de la app y avisos legales (THIRD_PARTY.md)
 ```
 
 La idea principal es que la UI no contiene reglas de negocio: React llama a casos de uso de `packages/core`, y esos casos de uso delegan el trabajo de medios en un motor intercambiable (`WebMediaEngine` o componentes Rust en desktop).
+
+</details>
 
 ---
 

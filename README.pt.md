@@ -75,6 +75,9 @@ O StikSound combina **uma imagem quadrada** e **um trecho de áudio** em um arqu
 
 ---
 
+<details>
+<summary><strong>Para usuários avançados: CLI headless, servidor MCP, funcionamento interno e estrutura do repositório</strong> (clique para expandir)</summary>
+
 ## 🤖 CLI Headless e Servidor MCP Local (Figurinhas com IA)
 
 O StikSound inclui uma **CLI multiplataforma** (`macOS`, `Windows`, `Linux`) com um **servidor MCP (Model Context Protocol) local integrado** (`stiksound mcp`) para criar figurinhas pelo terminal ou conversando com seu assistente de IA, mantendo todo o processamento local.
@@ -156,6 +159,8 @@ crates/
   project-store/ Escrita atômica e pacotes em Rust
 docs/            Ícones do app e avisos legais de terceiros (THIRD_PARTY.md)
 ```
+
+</details>
 
 ---
 
