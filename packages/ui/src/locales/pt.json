@@ -49,5 +49,10 @@
   "exportSuccessBundle": "Pacote salvo. Nota: contém a imagem e o áudio separados; o WhatsApp pode tratar a imagem como sticker normal.",
   "close": "Fechar",
   "shareReadyToast": "Vídeo pronto. Toque em \"Compartilhar\" para enviar ao WhatsApp ou salvar em Fotos.",
-  "videoSilentToast": "Este vídeo não tem som (ou não pôde ser lido). Se quiser, escolha um áudio pelo botão de áudio."
+  "videoSilentToast": "Este vídeo não tem som (ou não pôde ser lido). Se quiser, escolha um áudio pelo botão de áudio.",
+  "openInTabTooltip": "Abrir em aba própria",
+  "openSidePanelBtn": "Painel lateral",
+  "openSidePanelTooltip": "Abrir como Painel lateral (permanece aberto ao mudar de foco)",
+  "updateAvailableBanner": "Nova versão disponível ({version})",
+  "updateDownloadLink": "Atualizar"
 }

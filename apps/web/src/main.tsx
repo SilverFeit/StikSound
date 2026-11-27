@@ -10,6 +10,7 @@ import {
 } from "@stiksound/ui";
 import "../../../packages/ui/src/styles.css";
 import "./mobile.css";
+import pkg from "../package.json";
 
 /**
  * StikSound web / PWA shell, aimed at iPhone Safari ("Add to Home Screen").
@@ -286,6 +287,7 @@ createRoot(document.getElementById("root")!).render(
       initialLocale={locale}
       platform={{ transparentVideo: false, myInstantsUrl: false, videoStickers: true }}
       labelOverrides={webLabels}
+      appVersion={pkg.version}
     />
   </React.StrictMode>
 );

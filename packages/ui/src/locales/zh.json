@@ -49,5 +49,10 @@
   "exportSuccessBundle": "项目包已保存。提示：其中图片与音频为分开文件，WhatsApp 可能会将图片视为普通贴纸。",
   "close": "关闭",
   "shareReadyToast": "视频已就绪。点击“分享”发送到 WhatsApp 或保存到相册。",
-  "videoSilentToast": "此视频没有声音（或无法读取音轨）。你可以使用音频按钮选择一个声音。"
+  "videoSilentToast": "此视频没有声音（或无法读取音轨）。你可以使用音频按钮选择一个声音。",
+  "openInTabTooltip": "在新标签页中打开",
+  "openSidePanelBtn": "侧边栏",
+  "openSidePanelTooltip": "以侧边栏打开（切换焦点时保持开启）",
+  "updateAvailableBanner": "发现新版本 ({version})",
+  "updateDownloadLink": "前往更新"
 }

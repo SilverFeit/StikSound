@@ -17,6 +17,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
+        popup: path.resolve(__dirname, "popup.html"),
+        sidepanel: path.resolve(__dirname, "sidepanel.html"),
         editor: path.resolve(__dirname, "editor.html"),
         background: path.resolve(__dirname, "src/background.ts")
       },

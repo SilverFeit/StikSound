@@ -305,7 +305,8 @@ describe("StikSoundMinimalApp UI", () => {
     );
 
     const footer = screen.getByTestId("copyright-footer");
-    expect(footer.textContent).toContain("Copyright © 2026");
+    expect(footer.textContent?.trim().startsWith("v1.1.3 · Copyright © 2026")).toBe(true);
+    expect(screen.getByTestId("footer-version").textContent).toBe("v1.1.3");
     const repoLink = footer.querySelector("a");
     expect(repoLink?.getAttribute("href")).toBe("https://github.com/SilverFeit/StikSound");
 
@@ -367,5 +368,77 @@ describe("StikSoundMinimalApp UI", () => {
     expect(errText).toMatch(/MP4/i);
     expect(errText).toMatch(/ZIP/i);
     expect(errText).not.toMatch(/no es una imagen compatible/i);
+  });
+
+  it("renders fixed top update notification banner when a newer release exists and hides it when up to date", async () => {
+    const checkForUpdate = vi.fn().mockResolvedValue({
+      version: "1.2.0",
+      url: "https://github.com/SilverFeit/StikSound/releases/tag/v1.2.0"
+    });
+
+    const { rerender } = render(
+      <StikSoundMinimalApp
+        engine={createTestEngine()}
+        providers={[]}
+        shell={{ saveArtifact: vi.fn() }}
+        initialLocale="es"
+        appVersion="1.1.4"
+        checkForUpdate={checkForUpdate}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByTestId("update-banner")).toBeTruthy());
+    expect(screen.getByTestId("update-banner").textContent).toContain("v1.2.0");
+    const link = screen.getByTestId("update-banner-link");
+    expect(link.getAttribute("href")).toBe("https://github.com/SilverFeit/StikSound/releases/tag/v1.2.0");
+    expect(checkForUpdate).toHaveBeenCalledWith("1.1.4", expect.anything());
+
+    // When up to date (check returns null), banner is not shown
+    const upToDateCheck = vi.fn().mockResolvedValue(null);
+    rerender(
+      <StikSoundMinimalApp
+        engine={createTestEngine()}
+        providers={[]}
+        shell={{ saveArtifact: vi.fn() }}
+        initialLocale="es"
+        appVersion="1.2.0"
+        checkForUpdate={upToDateCheck}
+      />
+    );
+
+    await waitFor(() => expect(screen.queryByTestId("update-banner")).toBeNull());
+  });
+
+  it("renders extension view switch buttons (open in tab & fixed side panel) only when provided by shell", () => {
+    const openInTab = vi.fn();
+    const openSidePanel = vi.fn();
+
+    const { rerender } = render(
+      <StikSoundMinimalApp
+        engine={createTestEngine()}
+        providers={[]}
+        shell={{ saveArtifact: vi.fn(), openInTab, openSidePanel }}
+        initialLocale="es"
+      />
+    );
+
+    const tabBtn = screen.getByTestId("open-in-tab-btn");
+    const sidePanelBtn = screen.getByTestId("open-sidepanel-btn");
+    fireEvent.click(tabBtn);
+    fireEvent.click(sidePanelBtn);
+    expect(openInTab).toHaveBeenCalledTimes(1);
+    expect(openSidePanel).toHaveBeenCalledTimes(1);
+
+    // Without extension callbacks (web / desktop / full tab), neither button is rendered
+    rerender(
+      <StikSoundMinimalApp
+        engine={createTestEngine()}
+        providers={[]}
+        shell={{ saveArtifact: vi.fn() }}
+        initialLocale="es"
+      />
+    );
+    expect(screen.queryByTestId("open-in-tab-btn")).toBeNull();
+    expect(screen.queryByTestId("open-sidepanel-btn")).toBeNull();
   });
 });
