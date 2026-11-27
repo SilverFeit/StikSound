@@ -49,5 +49,10 @@
   "exportSuccessBundle": "Bundle saved. Note: it contains image and sound as separate files; WhatsApp may treat the image as a normal sticker.",
   "close": "Close",
   "shareReadyToast": "Video ready. Tap \"Share\" to send it to WhatsApp or save it to Photos.",
-  "videoSilentToast": "This video has no sound (or it could not be read). You can pick a sound with the audio button."
+  "videoSilentToast": "This video has no sound (or it could not be read). You can pick a sound with the audio button.",
+  "openInTabTooltip": "Open in own tab",
+  "openSidePanelBtn": "Side Panel",
+  "openSidePanelTooltip": "Open as Side Panel (stays open while you interact with the page)",
+  "updateAvailableBanner": "New version available ({version})",
+  "updateDownloadLink": "Update"
 }

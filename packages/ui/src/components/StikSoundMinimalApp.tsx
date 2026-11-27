@@ -27,6 +27,7 @@ import itLocale from "../locales/it.json";
 import ptLocale from "../locales/pt.json";
 import ruLocale from "../locales/ru.json";
 import zhLocale from "../locales/zh.json";
+import { checkLatestRelease, type ReleaseInfo } from "../update-checker";
 import { TimelineTrimBar } from "./TimelineTrimBar";
 
 export type ShareOutcome = "shared" | "cancelled" | "needs-tap";
@@ -41,6 +42,10 @@ export interface ShellBridge {
   shareArtifact?(artifact: ExportArtifact): Promise<ShareOutcome>;
   saveProjectZip?(zipBytes: Uint8Array, suggestedName: string): Promise<void>;
   openProjectZip?(): Promise<Uint8Array | null>;
+  /** Chrome extension: leave popup/side panel and open the full editor in its own browser tab. */
+  openInTab?(): Promise<void> | void;
+  /** Chrome extension popup: open StikSound docked in the browser Side Panel. */
+  openSidePanel?(): Promise<void> | void;
 }
 
 export interface PlatformOptions {
@@ -66,6 +71,11 @@ export interface StikSoundMinimalAppProps {
   platform?: PlatformOptions;
   labelOverrides?: Partial<Record<LocaleCode, Partial<UiLabels>>>;
   appVersion?: string;
+  /**
+   * Override the GitHub release update check, or pass `false` to disable it.
+   * Defaults to checking `SilverFeit/StikSound` latest release automatically.
+   */
+  checkForUpdate?: ((currentVersion: string, signal?: AbortSignal) => Promise<ReleaseInfo | null>) | false;
 }
 
 const REPO_URL = "https://github.com/SilverFeit/StikSound";
@@ -107,7 +117,8 @@ export const StikSoundMinimalApp: React.FC<StikSoundMinimalAppProps> = ({
   initialState,
   platform,
   labelOverrides,
-  appVersion = "1.1.3"
+  appVersion = "1.1.4",
+  checkForUpdate
 }) => {
   const allowTransparent = platform?.transparentVideo !== false;
   const allowMyInstantsUrl = platform?.myInstantsUrl !== false;
@@ -125,6 +136,38 @@ export const StikSoundMinimalApp: React.FC<StikSoundMinimalAppProps> = ({
   const [maxDurationMs, setMaxDurationMs] = useState<5000 | 10000>(10_000);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [availableUpdate, setAvailableUpdate] = useState<ReleaseInfo | null>(null);
+
+  useEffect(() => {
+    if (checkForUpdate === false) {
+      setAvailableUpdate(null);
+      return;
+    }
+    const isVitest =
+      typeof process !== "undefined" &&
+      Boolean((process as { env?: Record<string, string | undefined> }).env?.VITEST);
+    if (!checkForUpdate && isVitest) return;
+
+    let cancelled = false;
+    const abortController = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+    const runCheck = checkForUpdate
+      ? () => checkForUpdate(appVersion, abortController?.signal)
+      : () => checkLatestRelease(appVersion, { signal: abortController?.signal });
+
+    Promise.resolve()
+      .then(runCheck)
+      .then((release) => {
+        if (!cancelled) {
+          setAvailableUpdate(release);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+      abortController?.abort();
+    };
+  }, [appVersion, checkForUpdate]);
 
   const stickerFileInputRef = useRef<HTMLInputElement>(null);
   const projectZipInputRef = useRef<HTMLInputElement>(null);
@@ -566,179 +609,266 @@ export const StikSoundMinimalApp: React.FC<StikSoundMinimalAppProps> = ({
       ? { backgroundImage: "none", backgroundColor: currentMatte }
       : undefined;
 
+  const displayVersion = appVersion.startsWith("v") ? appVersion : `v${appVersion}`;
+
   return (
     <div
       className="stik-shell"
       data-testid="stiksound-minimal-app"
       dir={locale === "ar" ? "rtl" : "ltr"}
     >
-      <header className="stik-top-corners">
-        <button
-          type="button"
-          data-testid="reset-all-btn"
-          className="stik-corner-btn stik-reset-btn"
-          title={copy.resetTooltip}
-          aria-label={copy.resetTooltip}
-          onClick={handleResetAll}
+      {availableUpdate && (
+        <div
+          className="stik-update-banner"
+          data-testid="update-banner"
+          role="status"
+          aria-live="polite"
         >
-          ✕
-        </button>
-
-        <div className="stik-right-actions">
-          <button
-            type="button"
-            data-testid="overflow-menu-btn"
-            className="stik-corner-btn stik-menu-btn"
-            aria-label="Menu"
-            onClick={() => {
-              setDownloadMenuOpen(false);
-              setMenuOpen((o) => !o);
-            }}
+          <span className="stik-update-banner-text">
+            {copy.updateAvailableBanner.replace(
+              "{version}",
+              availableUpdate.version.startsWith("v")
+                ? availableUpdate.version
+                : `v${availableUpdate.version}`
+            )}
+          </span>
+          <a
+            className="stik-update-banner-link"
+            data-testid="update-banner-link"
+            href={availableUpdate.url}
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            ⋯
-          </button>
-
-          <button
-            type="button"
-            data-testid="download-btn"
-            className={`stik-corner-btn stik-download-btn ${sticker && !isBusy ? "ready" : "disabled"}`}
-            disabled={!sticker || isBusy}
-            title={sticker ? copy.downloadTooltip : exportDisabledReason}
-            aria-label={copy.downloadTooltip}
-            onClick={() => {
-              setMenuOpen(false);
-              setDownloadMenuOpen((o) => !o);
-            }}
-          >
-            ⬇
-          </button>
-
-          <button
-            type="button"
-            data-testid="export-ok-btn"
-            className={`stik-corner-btn stik-ok-btn ${canExport ? "ready" : "disabled"}`}
-            disabled={!canExport}
-            title={exportDisabledReason}
-            aria-label={exportDisabledReason}
-            onClick={handlePreviewAndCopyArrow}
-          >
-            {isBusy ? "…" : "➔"}
-          </button>
+            {copy.updateDownloadLink} ↗
+          </a>
         </div>
-      </header>
+      )}
 
-      {downloadMenuOpen && sticker && (
-        <div className="stik-popover" data-testid="download-format-picker">
-          <div className="stik-popover-label">{copy.downloadChooseFormat}</div>
-          <div className="stik-popover-actions">
+      <div className="stik-header-wrap">
+        <header className="stik-top-corners">
+          <div className="stik-left-actions">
             <button
               type="button"
-              data-testid="download-fmt-video-mp4"
-              disabled={!audio || !trimValid}
-              onClick={() => handleDownloadWithFormat("video-mp4")}
+              data-testid="reset-all-btn"
+              className="stik-corner-btn stik-reset-btn"
+              title={copy.resetTooltip}
+              aria-label={copy.resetTooltip}
+              onClick={handleResetAll}
             >
-              {copy.downloadFmtMp4}
+              ✕
             </button>
-            {allowTransparent && (
+
+            {shell.openInTab && (
               <button
                 type="button"
-                data-testid="download-fmt-video-webm-alpha"
-                disabled={!audio || !trimValid}
-                onClick={() => handleDownloadWithFormat("video-webm-alpha")}
+                data-testid="open-in-tab-btn"
+                className="stik-corner-btn stik-view-btn"
+                title={copy.openInTabTooltip}
+                aria-label={copy.openInTabTooltip}
+                onClick={() => void shell.openInTab?.()}
               >
-                {copy.downloadFmtWebm}
+                <svg
+                  viewBox="0 0 20 20"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M11 3h6v6" />
+                  <path d="M17 3l-7 7" />
+                  <path d="M15 11v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" />
+                </svg>
               </button>
             )}
-            <button
-              type="button"
-              data-testid="download-fmt-sound-bundle"
-              disabled={!audio || !trimValid}
-              onClick={() => handleDownloadWithFormat("sound-bundle")}
-            >
-              {copy.downloadFmtBundle}
-            </button>
-            <button
-              type="button"
-              data-testid="download-fmt-standard-webp"
-              onClick={() => handleDownloadWithFormat("standard-webp")}
-            >
-              {copy.downloadFmtWebp}
-            </button>
-          </div>
-          <p className="stik-popover-note" data-testid="download-whatsapp-note">
-            {copy.downloadWhatsappNote}
-          </p>
-        </div>
-      )}
 
-      {menuOpen && (
-        <div className="stik-popover" data-testid="overflow-menu">
-          <div className="stik-popover-actions">
-            <button
-              type="button"
-              onClick={async () => {
-                setMenuOpen(false);
-                if (shell.openProjectZip) {
-                  const zipBytes = await shell.openProjectZip();
-                  if (zipBytes) {
-                    setReadyArtifact(null);
-                    const opened = await controller.openProject(zipBytes);
-                    const openedAssoc = opened.manifest.associations[0];
-                    if (openedAssoc && openedAssoc.end_ms - openedAssoc.start_ms > 5_000) {
-                      setMaxDurationMs(10_000);
-                    }
-                    setProject(opened);
-                  }
-                } else {
-                  projectZipInputRef.current?.click();
-                }
-              }}
-            >
-              {copy.menuOpenProject}
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                setMenuOpen(false);
-                try {
-                  const zipBytes = await controller.saveProject(project);
-                  if (shell.saveProjectZip) {
-                    await shell.saveProjectZip(zipBytes, `${project.manifest.project.name}.stiksound.zip`);
-                  }
-                } catch (err) {
-                  handleError(err);
-                }
-              }}
-            >
-              {copy.menuSaveProject}
-            </button>
-            <label className="stik-popover-row">
-              <span>{copy.menuLanguage}</span>
-              <select
-                data-testid="language-select"
-                aria-label={copy.menuLanguage}
-                value={locale}
-                onChange={(e) => setLocale(e.target.value as LocaleCode)}
+            {shell.openSidePanel && (
+              <button
+                type="button"
+                data-testid="open-sidepanel-btn"
+                className="stik-sidepanel-btn"
+                title={copy.openSidePanelTooltip}
+                aria-label={copy.openSidePanelTooltip}
+                onClick={() => void shell.openSidePanel?.()}
               >
-                {SUPPORTED_LOCALES.map((code) => (
-                  <option key={code} value={code}>
-                    {LOCALE_NATIVE_NAMES[code]}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <svg
+                  viewBox="0 0 20 20"
+                  width="15"
+                  height="15"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
+                  <line x1="12.5" y1="3.5" x2="12.5" y2="16.5" />
+                </svg>
+                <span>{copy.openSidePanelBtn}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="stik-right-actions">
             <button
               type="button"
+              data-testid="overflow-menu-btn"
+              className="stik-corner-btn stik-menu-btn"
+              aria-label="Menu"
+              onClick={() => {
+                setDownloadMenuOpen(false);
+                setMenuOpen((o) => !o);
+              }}
+            >
+              ⋯
+            </button>
+
+            <button
+              type="button"
+              data-testid="download-btn"
+              className={`stik-corner-btn stik-download-btn ${sticker && !isBusy ? "ready" : "disabled"}`}
+              disabled={!sticker || isBusy}
+              title={sticker ? copy.downloadTooltip : exportDisabledReason}
+              aria-label={copy.downloadTooltip}
               onClick={() => {
                 setMenuOpen(false);
-                setAboutOpen(true);
+                setDownloadMenuOpen((o) => !o);
               }}
             >
-              {copy.menuAbout}
+              ⬇
+            </button>
+
+            <button
+              type="button"
+              data-testid="export-ok-btn"
+              className={`stik-corner-btn stik-ok-btn ${canExport ? "ready" : "disabled"}`}
+              disabled={!canExport}
+              title={exportDisabledReason}
+              aria-label={exportDisabledReason}
+              onClick={handlePreviewAndCopyArrow}
+            >
+              {isBusy ? "…" : "➔"}
             </button>
           </div>
-        </div>
-      )}
+        </header>
+
+        {downloadMenuOpen && sticker && (
+          <div className="stik-popover" data-testid="download-format-picker">
+            <div className="stik-popover-label">{copy.downloadChooseFormat}</div>
+            <div className="stik-popover-actions">
+              <button
+                type="button"
+                data-testid="download-fmt-video-mp4"
+                disabled={!audio || !trimValid}
+                onClick={() => handleDownloadWithFormat("video-mp4")}
+              >
+                {copy.downloadFmtMp4}
+              </button>
+              {allowTransparent && (
+                <button
+                  type="button"
+                  data-testid="download-fmt-video-webm-alpha"
+                  disabled={!audio || !trimValid}
+                  onClick={() => handleDownloadWithFormat("video-webm-alpha")}
+                >
+                  {copy.downloadFmtWebm}
+                </button>
+              )}
+              <button
+                type="button"
+                data-testid="download-fmt-sound-bundle"
+                disabled={!audio || !trimValid}
+                onClick={() => handleDownloadWithFormat("sound-bundle")}
+              >
+                {copy.downloadFmtBundle}
+              </button>
+              <button
+                type="button"
+                data-testid="download-fmt-standard-webp"
+                onClick={() => handleDownloadWithFormat("standard-webp")}
+              >
+                {copy.downloadFmtWebp}
+              </button>
+            </div>
+            <p className="stik-popover-note" data-testid="download-whatsapp-note">
+              {copy.downloadWhatsappNote}
+            </p>
+          </div>
+        )}
+
+        {menuOpen && (
+          <div className="stik-popover" data-testid="overflow-menu">
+            <div className="stik-popover-actions">
+              <button
+                type="button"
+                onClick={async () => {
+                  setMenuOpen(false);
+                  if (shell.openProjectZip) {
+                    const zipBytes = await shell.openProjectZip();
+                    if (zipBytes) {
+                      setReadyArtifact(null);
+                      const opened = await controller.openProject(zipBytes);
+                      const openedAssoc = opened.manifest.associations[0];
+                      if (openedAssoc && openedAssoc.end_ms - openedAssoc.start_ms > 5_000) {
+                        setMaxDurationMs(10_000);
+                      }
+                      setProject(opened);
+                    }
+                  } else {
+                    projectZipInputRef.current?.click();
+                  }
+                }}
+              >
+                {copy.menuOpenProject}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setMenuOpen(false);
+                  try {
+                    const zipBytes = await controller.saveProject(project);
+                    if (shell.saveProjectZip) {
+                      await shell.saveProjectZip(zipBytes, `${project.manifest.project.name}.stiksound.zip`);
+                    }
+                  } catch (err) {
+                    handleError(err);
+                  }
+                }}
+              >
+                {copy.menuSaveProject}
+              </button>
+              <label className="stik-popover-row">
+                <span>{copy.menuLanguage}</span>
+                <select
+                  data-testid="language-select"
+                  aria-label={copy.menuLanguage}
+                  value={locale}
+                  onChange={(e) => setLocale(e.target.value as LocaleCode)}
+                >
+                  {SUPPORTED_LOCALES.map((code) => (
+                    <option key={code} value={code}>
+                      {LOCALE_NATIVE_NAMES[code]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setAboutOpen(true);
+                }}
+              >
+                {copy.menuAbout}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <input
         ref={stickerFileInputRef}
@@ -972,7 +1102,10 @@ export const StikSoundMinimalApp: React.FC<StikSoundMinimalAppProps> = ({
       />
 
       <footer className="stik-copyright-footer" data-testid="copyright-footer">
-        Copyright © 2026{" "}
+        <span className="stik-footer-version" data-testid="footer-version">
+          {displayVersion}
+        </span>
+        {" · "}Copyright © 2026{" "}
         <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
           SilverFeit
         </a>

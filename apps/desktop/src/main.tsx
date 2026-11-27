@@ -12,6 +12,7 @@ import { WebMediaEngine } from "@stiksound/media-web";
 import { MyInstantsProvider, type FetchLike } from "@stiksound/providers";
 import { StikSoundMinimalApp, type ShellBridge } from "@stiksound/ui";
 import "../../../packages/ui/src/styles.css";
+import pkg from "../package.json";
 
 function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -99,6 +100,7 @@ createRoot(document.getElementById("root")!).render(
       providers={[new MyInstantsProvider(desktopFetch)]}
       shell={shell}
       initialLocale={locale}
+      appVersion={pkg.version}
     />
   </React.StrictMode>
 );

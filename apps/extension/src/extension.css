@@ -1,0 +1,35 @@
+/* Chrome extension view-specific layout adjustments */
+
+html.stik-ext-popup,
+html.stik-ext-popup body {
+  width: 420px;
+  height: 580px;
+  overflow: hidden;
+}
+
+html.stik-ext-popup #root {
+  width: 100%;
+  height: 100%;
+}
+
+html.stik-ext-popup .stik-shell {
+  height: 100%;
+  max-width: 100%;
+  padding: 12px;
+  gap: 8px;
+}
+
+html.stik-ext-popup .stik-sticker-stage,
+html.stik-ext-popup .stik-preview-ready-card {
+  min-height: 180px;
+}
+
+html.stik-ext-popup .stik-preview-box,
+html.stik-ext-popup .stik-ready-video {
+  width: 200px;
+  height: 200px;
+}
+
+html.stik-ext-sidepanel .stik-shell {
+  max-width: 100%;
+}
