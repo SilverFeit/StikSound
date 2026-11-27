@@ -13,17 +13,26 @@ import {
   type SoundProvider
 } from "@stiksound/core";
 import { sniffAudioContainer, sniffVideoContainer } from "@stiksound/media-web";
-import { MyInstantsProvider } from "@stiksound/providers";
+import {
+  MyInstantsProvider,
+  type MyInstantsSearchOptions,
+  type MyInstantsSearchResult
+} from "@stiksound/providers";
 import { copyFileToClipboard, type ClipboardCopier } from "./clipboard";
 import {
   NodeMediaEngine,
+  TEXT_STICKER_STYLES,
   detectCapabilities,
   encodeWebpAtQuality,
+  ensureTextStickerRenderer,
   ensureWebpEncoder,
+  isTextStickerStyle,
   pickH264Encoder,
   pickOpusEncoder,
+  renderTextStickerPng,
   runBinary,
-  type CliMediaEngine
+  type CliMediaEngine,
+  type TextStickerStyle
 } from "./engine";
 import { CliInputError } from "./errors";
 import {
@@ -57,9 +66,20 @@ export interface PreviewImage {
   mimeType: "image/webp";
 }
 
+export { TEXT_STICKER_STYLES, isTextStickerStyle, type TextStickerStyle };
+
+export interface SearchableSoundProvider extends SoundProvider {
+  search(query: string, options?: MyInstantsSearchOptions): Promise<MyInstantsSearchResult[]>;
+}
+
+function isSearchableProvider(provider: SoundProvider): provider is SearchableSoundProvider {
+  return typeof (provider as Partial<SearchableSoundProvider>).search === "function";
+}
+
 export interface ServiceContext {
   engine: CliMediaEngine;
   controller: ProjectController;
+  providers: SoundProvider[];
   outputDir: string;
   copyToClipboard: ClipboardCopier;
   pathOptions: ResolvePathOptions;
@@ -80,6 +100,7 @@ export function createServiceContext(options: ServiceOptions = {}): ServiceConte
   return {
     engine,
     controller: new ProjectController(engine, providers),
+    providers,
     outputDir: options.outputDir ?? defaultOutputDir(),
     copyToClipboard: options.copyToClipboard ?? copyFileToClipboard,
     pathOptions: {
@@ -326,8 +347,57 @@ async function buildExportResult(
   return { payload, outputPath, preview };
 }
 
+export interface SearchSoundsOptions {
+  query: string;
+  limit?: number;
+  locale?: string;
+}
+
+const LOCALE_REGEX = /^[a-z]{2}(?:-[a-z]{2})?$/i;
+
+export async function searchSounds(
+  context: ServiceContext,
+  options: SearchSoundsOptions
+): Promise<ServiceResult> {
+  const query = options.query.trim();
+  if (!query) {
+    throw new CliInputError("Search query must not be empty.");
+  }
+  if (query.length > 120) {
+    throw new CliInputError(`Search query must be at most 120 characters (got ${query.length}).`);
+  }
+  const limit = options.limit ?? 5;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 20) {
+    throw new CliInputError(`limit must be an integer between 1 and 20 (got ${String(options.limit)}).`);
+  }
+  const locale = (options.locale ?? "en").trim().toLowerCase();
+  if (!LOCALE_REGEX.test(locale)) {
+    throw new CliInputError(`locale must be a 2-letter language code like "en" or "es" (got "${String(options.locale)}").`);
+  }
+
+  const provider = context.providers.find(isSearchableProvider);
+  if (!provider) {
+    throw new CliInputError("No searchable sound provider is configured.");
+  }
+
+  const results = await provider.search(query, { limit, locale });
+  return {
+    payload: {
+      provider: provider.id,
+      query,
+      locale,
+      count: results.length,
+      results
+    }
+  };
+}
+
 export interface CreateSoundStickerOptions {
-  imagePath: string;
+  imagePath?: string;
+  text?: string;
+  textColor?: string;
+  textStyle?: TextStickerStyle;
+  transparentBackground?: boolean;
   audioPath?: string;
   myinstantsUrl?: string;
   startMs?: number;
@@ -367,6 +437,15 @@ export async function createSoundSticker(
   }
   const maxMs = durationPresetMs(options.maxDurationS);
 
+  const hasImage = Boolean(options.imagePath?.trim());
+  const hasText = options.text !== undefined;
+  if (hasImage && hasText) {
+    throw new CliInputError("Pass either image_path or text, not both.");
+  }
+  if (!hasImage && !hasText) {
+    throw new CliInputError("Pass either image_path or text to create a sticker.");
+  }
+
   if (options.audioPath && options.myinstantsUrl) {
     throw new CliInputError("Pass either audio_path or myinstants_url, not both.");
   }
@@ -375,12 +454,52 @@ export async function createSoundSticker(
   }
   if (options.outputPath) resolveUserPath(options.outputPath, "output", pathOptions);
   if (options.outputDir) resolveUserPath(options.outputDir, "output_dir", pathOptions);
-  const matteColor = options.backgroundColor !== undefined ? validateMatteColor(options.backgroundColor) : undefined;
 
-  const image = await readInputFile(options.imagePath, LIMITS.MAX_VIDEO_BYTES, "image_path", pathOptions);
-  const projectName = options.name?.trim() || path.parse(image.name).name;
+  const rawBg = options.backgroundColor?.trim();
+  const bgIsTransparent = rawBg?.toLowerCase() === "transparent";
+  if (bgIsTransparent && !hasText) {
+    throw new CliInputError('background_color "transparent" is only supported when generating a sticker from text.');
+  }
+  const matteColor = rawBg !== undefined && !bgIsTransparent ? validateMatteColor(rawBg) : undefined;
+
+  let stickerBytes: Uint8Array;
+  let stickerFileName: string;
+  let defaultProjectName: string;
+  let effectiveMatteColor = matteColor;
+
+  if (hasText) {
+    const textStyle = options.textStyle ?? "meme";
+    if (!isTextStickerStyle(textStyle)) {
+      throw new CliInputError(`Unsupported text style "${String(textStyle)}". Choose one of: ${TEXT_STICKER_STYLES.join(", ")}.`);
+    }
+    const wantsTransparent = Boolean(options.transparentBackground) || bgIsTransparent;
+    const pngBackground = wantsTransparent
+      ? "transparent"
+      : matteColor ?? (profile === "video-mp4" || textStyle !== "meme" ? "#111827" : "transparent");
+
+    stickerBytes = await renderTextStickerPng({
+      text: options.text!,
+      textColor: options.textColor,
+      backgroundColor: pngBackground,
+      style: textStyle
+    });
+    const cleanTextName = options.text!.trim().replace(/\s+/g, " ").slice(0, 48);
+    const slug = sanitizeExportName(cleanTextName) || "text-sticker";
+    stickerFileName = `${slug}.png`;
+    defaultProjectName = cleanTextName || "text-sticker";
+    if (!effectiveMatteColor && pngBackground !== "transparent") {
+      effectiveMatteColor = pngBackground;
+    }
+  } else {
+    const image = await readInputFile(options.imagePath!, LIMITS.MAX_VIDEO_BYTES, "image_path", pathOptions);
+    stickerBytes = image.bytes;
+    stickerFileName = image.name;
+    defaultProjectName = path.parse(image.name).name;
+  }
+
+  const projectName = options.name?.trim() || defaultProjectName;
   let state = createProject(projectName, profile);
-  state = await controller.importSticker(state, image.bytes, image.name, maxMs);
+  state = await controller.importSticker(state, stickerBytes, stickerFileName, maxMs);
 
   if (options.audioPath) {
     const audio = await readInputFile(options.audioPath, LIMITS.MAX_AUDIO_BYTES, "audio_path", pathOptions);
@@ -394,11 +513,11 @@ export async function createSoundSticker(
     throw new CliInputError(`Profile ${profile} needs a sound: pass --audio / audio_path or --url / myinstants_url.`);
   }
 
-  if (options.cropX !== undefined || options.cropY !== undefined || matteColor !== undefined) {
+  if (options.cropX !== undefined || options.cropY !== undefined || effectiveMatteColor !== undefined) {
     state = controller.updateStickerEdit(state, {
       ...(options.cropX !== undefined ? { crop_x: options.cropX } : {}),
       ...(options.cropY !== undefined ? { crop_y: options.cropY } : {}),
-      ...(matteColor !== undefined ? { matte_color: matteColor } : {})
+      ...(effectiveMatteColor !== undefined ? { matte_color: effectiveMatteColor } : {})
     });
   }
 
@@ -549,6 +668,10 @@ export interface DoctorReport {
     available: boolean;
     error?: string;
   };
+  text_renderer: {
+    available: boolean;
+    error?: string;
+  };
   profiles: Record<EnabledProfile, boolean>;
   install_hint: string;
 }
@@ -602,6 +725,14 @@ export async function runDoctor(context: ServiceContext): Promise<DoctorReport> 
     webpReport.error = err instanceof Error ? err.message : String(err);
   }
 
+  const textRendererReport: DoctorReport["text_renderer"] = { available: false };
+  try {
+    await ensureTextStickerRenderer();
+    textRendererReport.available = true;
+  } catch (err) {
+    textRendererReport.error = err instanceof Error ? err.message : String(err);
+  }
+
   const baseTools = ffmpegReport.available && ffprobeReport.available;
   const profiles: Record<EnabledProfile, boolean> = {
     "video-mp4": baseTools && ffmpegReport.h264_encoder !== null && ffmpegReport.aac_encoder,
@@ -611,13 +742,14 @@ export async function runDoctor(context: ServiceContext): Promise<DoctorReport> 
   };
 
   return {
-    ok: profiles["video-mp4"] && webpReport.available,
+    ok: profiles["video-mp4"] && webpReport.available && textRendererReport.available,
     platform: process.platform,
     arch: process.arch,
     node_version: process.version,
     ffmpeg: ffmpegReport,
     ffprobe: ffprobeReport,
     webp_wasm: webpReport,
+    text_renderer: textRendererReport,
     profiles,
     install_hint: ffmpegInstallHint(process.platform)
   };

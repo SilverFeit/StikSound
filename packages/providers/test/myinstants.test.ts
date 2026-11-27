@@ -5,6 +5,7 @@ import { LIMITS } from "@stiksound/core";
 import {
   MyInstantsProvider,
   extractMyInstantsFromHtml,
+  extractMyInstantsSearchResults,
   isPrivateOrReservedIp,
   validateMyInstantsUrl,
   type FetchLike
@@ -106,5 +107,75 @@ describe("packages/providers MyInstants & SSRF security", () => {
     expect(resolved.media_url).toBe("https://www.myinstants.com/media/sounds/gi-steel-pipe.mp3");
     expect(resolved.title).toBe("gi steel pipe");
     expect(resolved.bytes).toEqual(mp3Stub);
+  });
+
+  it("extracts search results offline, filters non-allowlisted hosts, and respects limit", () => {
+    const html = fs.readFileSync(path.join(fixturesDir, "search-results.html"), "utf-8");
+    const all = extractMyInstantsSearchResults(html, 10);
+    expect(all).toEqual([
+      {
+        title: "VINE BOOM SOUND",
+        page_url: "https://www.myinstants.com/en/instant/vine-boom-sound-70972/",
+        media_url: "https://www.myinstants.com/media/sounds/vine-boom.mp3"
+      },
+      {
+        title: "Airhorn & Classic '10'",
+        page_url: "https://www.myinstants.com/en/instant/airhorn-classic/",
+        media_url: "https://www.myinstants.com/media/sounds/airhorn-fixture.mp3"
+      },
+      {
+        title: "Bruh Moment",
+        page_url: "https://www.myinstants.com/es/instant/bruh-sound-26614/",
+        media_url: "https://www.myinstants.com/media/sounds/bruh.mp3"
+      }
+    ]);
+
+    expect(extractMyInstantsSearchResults(html, 2)).toHaveLength(2);
+
+    const emptyHtml = fs.readFileSync(path.join(fixturesDir, "search-empty.html"), "utf-8");
+    expect(extractMyInstantsSearchResults(emptyHtml, 5)).toEqual([]);
+  });
+
+  it("searches MyInstants via MyInstantsProvider.search with URL encoding, locale and SSRF checks", async () => {
+    const html = fs.readFileSync(path.join(fixturesDir, "search-results.html"), "utf-8");
+    const requestedUrls: string[] = [];
+    const mockFetch: FetchLike = async (url) => {
+      requestedUrls.push(String(url));
+      return new Response(html, { status: 200 });
+    };
+    const provider = new MyInstantsProvider(mockFetch);
+    const results = await provider.search("vine boom", { limit: 2, locale: "es" });
+    expect(requestedUrls).toEqual(["https://www.myinstants.com/es/search/?name=vine%20boom"]);
+    expect(results).toHaveLength(2);
+    expect(results[0]?.title).toBe("VINE BOOM SOUND");
+
+    await expect(provider.search("   ")).rejects.toMatchObject({ code: "url-rejected" });
+    await expect(provider.search("a".repeat(121))).rejects.toMatchObject({ code: "url-rejected" });
+    await expect(provider.search("boom", { locale: "../etc" })).rejects.toMatchObject({ code: "url-rejected" });
+
+    const redirectProvider = new MyInstantsProvider(async () =>
+      new Response(null, { status: 302, headers: { location: "https://evil.example/search" } })
+    );
+    await expect(redirectProvider.search("boom")).rejects.toMatchObject({ code: "url-rejected" });
+  });
+
+  it("deduplicates repeated search results and falls back when card wrapper markup changes", () => {
+    const duplicateCardsHtml = `
+      <div class="instant"><a href="/en/instant/dup-1/" class="instant-link">Dup One</a></div>
+      <div class="instant"><a href="/en/instant/dup-1/?ref=2" class="instant-link">Dup One Again</a></div>
+    `;
+    expect(extractMyInstantsSearchResults(duplicateCardsHtml, 5)).toEqual([
+      { title: "Dup One", page_url: "https://www.myinstants.com/en/instant/dup-1/", media_url: null }
+    ]);
+
+    const fallbackHtml = `
+      <section>
+        <a class="instant-link" href="/en/instant/fallback-sound/">Fallback Sound</a>
+        <a class="instant-link" href="https://evil.example/en/instant/bad/">Bad</a>
+      </section>
+    `;
+    expect(extractMyInstantsSearchResults(fallbackHtml, 5)).toEqual([
+      { title: "Fallback Sound", page_url: "https://www.myinstants.com/en/instant/fallback-sound/", media_url: null }
+    ]);
   });
 });

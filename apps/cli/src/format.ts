@@ -93,6 +93,20 @@ export function formatExportHuman(payload: Record<string, unknown>): string {
   return lines.join("\n");
 }
 
+export function formatSearchHuman(payload: Record<string, unknown>): string {
+  const query = String(payload.query ?? "");
+  const results = (payload.results as Array<{ title: string; page_url: string; media_url: string | null }>) ?? [];
+  if (results.length === 0) {
+    return `No MyInstants sounds found for "${query}".`;
+  }
+  const lines: string[] = [`MyInstants results for "${query}" (${results.length}):`];
+  results.forEach((item, index) => {
+    lines.push(`  ${index + 1}. ${item.title}`);
+    lines.push(`     ${item.page_url}`);
+  });
+  return lines.join("\n");
+}
+
 export function formatDoctorHuman(report: DoctorReport): string {
   const lines: string[] = [];
   const check = (ok: boolean) => (ok ? "[OK]" : "[MISSING]");
@@ -105,6 +119,8 @@ export function formatDoctorHuman(report: DoctorReport): string {
   if (report.ffprobe.error) lines.push(`       ${report.ffprobe.error}`);
   lines.push(`  ${check(report.webp_wasm.available)} WebP WASM encoder (@jsquash/webp)`);
   if (report.webp_wasm.error) lines.push(`       ${report.webp_wasm.error}`);
+  lines.push(`  ${check(report.text_renderer.available)} Text sticker renderer (@resvg/resvg-wasm)`);
+  if (report.text_renderer.error) lines.push(`       ${report.text_renderer.error}`);
 
   if (report.ffmpeg.available) {
     lines.push(

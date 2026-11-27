@@ -127,7 +127,7 @@ jobs:
             const fs = require("node:fs");
             const pkg = JSON.parse(fs.readFileSync("apps/cli/package.json", "utf8"));
             const runtimeDeps = {};
-            for (const name of ["@jsquash/webp", "@modelcontextprotocol/sdk", "zod"]) {
+            for (const name of ["@jsquash/webp", "@modelcontextprotocol/sdk", "@resvg/resvg-wasm", "@expo-google-fonts/archivo-black", "zod"]) {
               runtimeDeps[name] = pkg.dependencies[name];
             }
             fs.writeFileSync("apps/cli/dist-release/prod_stage/package.json", JSON.stringify({

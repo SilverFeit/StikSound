@@ -136,6 +136,36 @@ describe.skipIf(!hasFfmpeg)("apps/cli real FFmpeg integration", () => {
     }
   }, 60_000);
 
+  it("renders a text-only sticker to MP4 and transparent WebM via CLI end-to-end", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "stiksound-cli-text-e2e-"));
+    try {
+      const wavPath = path.join(dir, "tone.wav");
+      const mp4Out = path.join(dir, "text.mp4");
+      const webmOut = path.join(dir, "text.webm");
+      await writeFile(wavPath, await wavFixture(2));
+
+      const mp4Lines: string[] = [];
+      const mp4Code = await runCli(
+        ["create", "--text", "LITERALMENTE YO", "-a", wavPath, "-o", mp4Out, "--json"],
+        { io: { stdout: (l) => mp4Lines.push(l), stderr: () => undefined } }
+      );
+      expect(mp4Code).toBe(0);
+      expect(sniffVideoContainer(new Uint8Array(await readFile(mp4Out)))).toBe("mp4");
+
+      const webmLines: string[] = [];
+      const webmCode = await runCli(
+        ["create", "--text", "BOOM", "--transparent", "--profile", "video-webm-alpha", "-a", wavPath, "-o", webmOut, "--json"],
+        { io: { stdout: (l) => webmLines.push(l), stderr: () => undefined } }
+      );
+      expect(webmCode).toBe(0);
+      const webmInfo = await inspectRendered(new Uint8Array(await readFile(webmOut)), "webm");
+      expect(webmInfo.probed.streams.find((s) => s.codecType === "video")).toMatchObject({ width: 512, height: 512 });
+      expect(webmInfo.firstFrame[3]).toBeLessThan(20); // top-left corner transparent
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 90_000);
+
   it("passes doctor when FFmpeg is installed", async () => {
     const out: string[] = [];
     const code = await runCli(["doctor", "--json"], {

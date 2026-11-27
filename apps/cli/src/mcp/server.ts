@@ -4,19 +4,24 @@ import { z } from "zod";
 import packageJson from "../../package.json";
 import {
   ENABLED_PROFILES,
+  TEXT_STICKER_STYLES,
   createServiceContext,
   createSoundSticker,
   exportSavedProject,
   probeMedia,
+  runDoctor,
+  searchSounds,
   type ServiceOptions
 } from "../service";
 import { guarded, jsonResult } from "./results";
 
 const INSTRUCTIONS = [
-  "StikSound turns an image, GIF or short clip plus a sound into a square video or sticker file, entirely on this machine.",
-  "Typical flow: call probe_media on the image to check the crop and on the audio to find the loudest window, then call create_sound_sticker.",
-  "All paths must be absolute or start with ~/. The server cannot see files attached to the chat, only files on disk.",
-  "Sounds can come from a local file or a myinstants.com URL; no other host is contacted.",
+  "StikSound turns an image, GIF, short clip, or rendered text plus a sound into a square video or sticker file, entirely on this machine.",
+  "Prompt-only flow: when the user asks for a text sticker, pass `text` (and optional `text_style`, `text_color`, `background_color`, `transparent_background`) to create_sound_sticker with no `image_path` needed; if the user wants an illustration and you have an image generator, save it to disk and pass its absolute `image_path`.",
+  "When the user describes a sound instead of giving a local file or URL, call search_sounds first, pick the best matching result's `page_url`, and pass it as `myinstants_url` to create_sound_sticker (prefer `trim: \"loudest\"` if the user did not specify timestamps).",
+  "For existing local media, call probe_media on the image to check the crop and on the audio to find the loudest window before create_sound_sticker.",
+  "All file paths must be absolute or start with ~/. The server cannot see files attached to the chat, only files on disk.",
+  "Outbound network access is restricted to myinstants.com over HTTPS; no other host is contacted.",
   "No output is a WhatsApp sticker with sound: WhatsApp has no public format for one. Always relay the note returned with an export."
 ].join(" ");
 
@@ -56,17 +61,66 @@ export function createMcpServer(options: ServiceOptions = {}): McpServer {
   );
 
   server.registerTool(
+    "search_sounds",
+    {
+      title: "Search sounds on MyInstants",
+      description:
+        "Searches myinstants.com by keyword or sound description and returns matching sound titles and page_url values that can be passed to create_sound_sticker's myinstants_url.",
+      inputSchema: {
+        query: z.string().min(1).max(120).describe('Sound keywords or description, e.g. "vine boom" or "airhorn".'),
+        limit: z.number().int().min(1).max(20).optional().describe("Maximum results to return (1 to 20). Default 5."),
+        locale: z
+          .string()
+          .regex(/^[a-z]{2}(?:-[a-z]{2})?$/i)
+          .optional()
+          .describe('Optional MyInstants locale path segment, e.g. "en" or "es". Default "en".')
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true }
+    },
+    (args) =>
+      guarded(async () => {
+        const result = await searchSounds(context, {
+          query: args.query,
+          limit: args.limit,
+          locale: args.locale
+        });
+        return jsonResult(result.payload);
+      })
+  );
+
+  server.registerTool(
     "create_sound_sticker",
     {
       title: "Create a sound sticker",
       description:
-        "Combines an image, GIF or short clip with an audio fragment of up to 5 or 10 seconds and writes the result to disk locally with FFmpeg. " +
-        "The image is cropped to a square and never upscaled (max 512 px). Returns the output path, applied trim and a framing preview. " +
+        "Combines an image, GIF, short clip, OR rendered text sticker with an audio fragment of up to 5 or 10 seconds and writes the result to disk locally with FFmpeg. " +
+        "Pass either `image_path` (local visual file) or `text` (renders a 512x512 text sticker locally without needing an image file). " +
+        "Returns the output path, applied trim and a framing preview. " +
         "The result is a file to share, not an installed WhatsApp sticker; relay the returned note to the user.",
       inputSchema: {
         image_path: z
           .string()
-          .describe("Absolute path (or ~/...) to the sticker source: PNG, JPG, WebP, GIF, or short MP4/MOV/WebM clip."),
+          .optional()
+          .describe("Absolute path (or ~/...) to the sticker source: PNG, JPG, WebP, GIF, or short MP4/MOV/WebM clip. Omit when using `text`."),
+        text: z
+          .string()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe("Text to render directly into a 512x512 sticker (1-200 chars, supports \\n line breaks). Use instead of `image_path`."),
+        text_color: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/)
+          .optional()
+          .describe("Text fill color as #RRGGBB when using `text`. Defaults to high-contrast white/dark."),
+        text_style: z
+          .enum(TEXT_STICKER_STYLES)
+          .optional()
+          .describe('Visual style when using `text`: "meme" (default, bold uppercase with outline), "card" (rounded card), or "minimal".'),
+        transparent_background: z
+          .boolean()
+          .optional()
+          .describe("When using `text`, render on a transparent background (ideal for video-webm-alpha or standard-webp)."),
         audio_path: z
           .string()
           .optional()
@@ -74,7 +128,7 @@ export function createMcpServer(options: ServiceOptions = {}): McpServer {
         myinstants_url: z
           .string()
           .optional()
-          .describe("A myinstants.com instant page or direct /media/sounds/ URL. Use instead of audio_path."),
+          .describe("A myinstants.com instant page (e.g. from search_sounds) or direct /media/sounds/ URL. Use instead of audio_path."),
         start_ms: z.number().int().min(0).optional().describe("Start of the audio fragment in milliseconds. Default 0."),
         end_ms: z
           .number()
@@ -95,9 +149,9 @@ export function createMcpServer(options: ServiceOptions = {}): McpServer {
         crop_y: z.number().min(0).max(1).optional().describe("Vertical 1:1 crop anchor: 0 top, 0.5 center, 1 bottom."),
         background_color: z
           .string()
-          .regex(/^#[0-9a-fA-F]{6}$/)
+          .regex(/^(?:#[0-9a-fA-F]{6}|transparent)$/i)
           .optional()
-          .describe("#RRGGBB matte color behind transparent areas in MP4. Default #FFFFFF."),
+          .describe('#RRGGBB matte/background color (or "transparent" when using `text`). Default #FFFFFF for image MP4 matte, #111827 for text MP4.'),
         profile: z
           .enum(ENABLED_PROFILES)
           .optional()
@@ -116,6 +170,10 @@ export function createMcpServer(options: ServiceOptions = {}): McpServer {
       guarded(async () => {
         const result = await createSoundSticker(context, {
           imagePath: args.image_path,
+          text: args.text,
+          textColor: args.text_color,
+          textStyle: args.text_style,
+          transparentBackground: args.transparent_background,
           audioPath: args.audio_path,
           myinstantsUrl: args.myinstants_url,
           startMs: args.start_ms,
@@ -134,6 +192,22 @@ export function createMcpServer(options: ServiceOptions = {}): McpServer {
           includePreview: true
         });
         return jsonResult(result.payload, result.preview);
+      })
+  );
+
+  server.registerTool(
+    "check_environment",
+    {
+      title: "Check local StikSound environment",
+      description:
+        "Checks FFmpeg, ffprobe, H.264/AAC/VP9/Opus encoders, WebP WASM encoder, and the text-sticker renderer so you know which export profiles are ready.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, openWorldHint: false }
+    },
+    () =>
+      guarded(async () => {
+        const report = await runDoctor(context);
+        return jsonResult(report as unknown as Record<string, unknown>);
       })
   );
 

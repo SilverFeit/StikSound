@@ -36,6 +36,16 @@ Este documento registra el software de terceros, códecs y bibliotecas incluidas
 | `webm-muxer` | MIT | Multiplexado WebM VP9/Opus para WebCodecs |
 | `vitest` | MIT | Ejecutor de pruebas unitarias y de integración |
 
+## Paquetes de CLI y servidor MCP (`apps/cli`)
+
+| Paquete | Licencia | Propósito |
+| --- | --- | --- |
+| `@jsquash/webp` | Apache-2.0 | Codificación WebP estática en WebAssembly (`libwebp`) |
+| `@modelcontextprotocol/sdk` | MIT | Servidor local opcional de Model Context Protocol (MCP) |
+| `@resvg/resvg-wasm` | MPL-2.0 | Renderizado SVG a PNG en WebAssembly para stickers de texto |
+| `@expo-google-fonts/archivo-black` | MIT AND OFL-1.1 | Fuente tipográfica embebida Archivo Black para stickers de texto |
+| `zod` | MIT | Validación de esquemas de herramientas MCP |
+
 ## Aviso sobre derechos de contenido
 
 Los sonidos obtenidos desde MyInstants pertenecen a sus respectivos autores. StikSound no otorga ninguna licencia de redistribución sobre los sonidos descargados.

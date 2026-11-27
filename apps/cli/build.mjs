@@ -22,7 +22,11 @@ await build({
     "@modelcontextprotocol/sdk/*",
     "zod",
     "@jsquash/webp",
-    "@jsquash/webp/*"
+    "@jsquash/webp/*",
+    "@resvg/resvg-wasm",
+    "@resvg/resvg-wasm/*",
+    "@expo-google-fonts/archivo-black",
+    "@expo-google-fonts/archivo-black/*"
   ],
   banner: { js: "#!/usr/bin/env node" },
   legalComments: "none",

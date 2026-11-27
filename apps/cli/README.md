@@ -50,13 +50,28 @@ stiksound probe ./sound.mp3 --json
 stiksound probe ./saved.stiksound.zip
 ```
 
-### `stiksound create <image> [options]`
+### `stiksound search <query>`
 
-Creates a sticker from a local image (`PNG`, `JPG`, `WebP`, `GIF`) or short video clip (`MP4`, `MOV`, `WebM`) plus a local audio file (`MP3`, `WAV`, `OGG`, `M4A`, `AAC`) or a `myinstants.com` URL.
+Searches MyInstants by keyword or description under the strict HTTPS `myinstants.com` allowlist:
+
+```bash
+stiksound search "vine boom"
+stiksound search "airhorn" --limit 5 --locale en --json
+```
+
+### `stiksound create (<image> | --text <text>) [options]`
+
+Creates a sticker from a local image (`PNG`, `JPG`, `WebP`, `GIF`), short video clip (`MP4`, `MOV`, `WebM`), or rendered text (`--text`) plus a local audio file (`MP3`, `WAV`, `OGG`, `M4A`, `AAC`) or a `myinstants.com` URL.
 
 ```bash
 # Default 10s MP4 in ~/Downloads/StikSound
 stiksound create cat.png -a boom.mp3
+
+# Text-only sticker + MyInstants sound (no image file required)
+stiksound create --text "LITERALMENTE YO" -u "https://www.myinstants.com/en/instant/vine-boom-sound-70972/" --trim loudest
+
+# Transparent text sticker as WebP (no audio)
+stiksound create --text "NO PUEDE SER" --text-style meme --transparent --profile standard-webp -o caption.webp
 
 # Pick the loudest 5s window automatically and write to a specific file
 stiksound create cat.png -a song.mp3 --trim loudest -d 5 -o ./out/cat-5s.mp4
@@ -84,6 +99,10 @@ Key flags:
 
 | Flag | Default | Description |
 | --- | --- | --- |
+| `-t, --text <text>` | | Render a 512x512 text sticker directly (alternative to `<image>`) |
+| `--text-color <#RRGGBB>` | auto | Text fill color when using `--text` |
+| `--text-style <style>` | `meme` | `meme`, `card`, or `minimal` when using `--text` |
+| `--transparent` | `false` | Transparent background for `--text` stickers |
 | `-a, --audio <path>` | | Local audio file (max 25 MB / 3 min) |
 | `-u, --url <url>` | | MyInstants instant page or `/media/sounds/` HTTPS URL |
 | `--start <time>`, `--end <time>` | `0` .. max | Trim range (`1500`, `1500ms`, `1.5s`, `0:05`) |
@@ -111,7 +130,9 @@ stiksound export ./cat.stiksound.zip --profile video-webm-alpha -o ./cat.webm
 
 ### `stiksound mcp` (optional MCP server)
 
-Starts a local Model Context Protocol (MCP) server over stdio exposing `probe_media`, `create_sound_sticker`, and `export_project`. The MCP SDK is only loaded when this subcommand is invoked.
+Starts a local Model Context Protocol (MCP) server over stdio exposing `search_sounds`, `probe_media`, `create_sound_sticker`, `export_project`, and `check_environment`. The MCP SDK is only loaded when this subcommand is invoked.
+
+With a single prompt (for example *"Make a sticker that says 'LITERALMENTE YO' with a vine boom sound"*), an MCP client can call `search_sounds` to find the MyInstants URL and then `create_sound_sticker` with `text` + `myinstants_url` without needing any pre-existing files on disk.
 
 Print ready-to-use client configuration snippets (Claude Code, Claude Desktop, Cursor, Codex):
 

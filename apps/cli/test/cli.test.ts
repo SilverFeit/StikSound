@@ -29,11 +29,14 @@ async function invoke(argv: string[], extra: Partial<RunCliOptions> = {}): Promi
   const out: string[] = [];
   const err: string[] = [];
   const html = await readFile(path.join(fixturesDir, "instant-page.html"));
+  const searchHtml = await readFile(path.join(fixturesDir, "search-results.html"));
   const fakeMp3 = new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xfb, 0x90, 0x00, 0x00, 0x00]); // ID3 + MP3 frame header
   const fakeFetch: FetchLike = async (input) => {
     const url = String(input);
     fetched.push(url);
-    return url.includes("/media/sounds/") ? new Response(Buffer.from(fakeMp3)) : new Response(Buffer.from(html));
+    if (url.includes("/media/sounds/")) return new Response(Buffer.from(fakeMp3));
+    if (url.includes("/search/")) return new Response(Buffer.from(searchHtml));
+    return new Response(Buffer.from(html));
   };
 
   const code = await runCli(argv, {
@@ -286,11 +289,68 @@ describe("apps/cli headless commands (no FFmpeg required)", () => {
     expect(parsed.ok).toBe(false);
     expect(parsed.ffmpeg.available).toBe(false);
     expect(parsed.webp_wasm.available).toBe(true);
+    expect(parsed.text_renderer.available).toBe(true);
     expect(parsed.install_hint.length).toBeGreaterThan(0);
+  });
+
+  it("supports `stiksound search` and `stiksound create --text`", async () => {
+    const searchJson = await invoke(["search", "vine", "boom", "--limit", "2", "--locale", "es", "--json"]);
+    expect(searchJson.code).toBe(0);
+    const searchData = JSON.parse(searchJson.stdout);
+    expect(searchData).toMatchObject({
+      provider: "myinstants",
+      query: "vine boom",
+      locale: "es",
+      count: 2
+    });
+    expect(searchData.results[0].page_url).toBe("https://www.myinstants.com/en/instant/vine-boom-sound-70972/");
+
+    const searchHuman = await invoke(["search", "airhorn"]);
+    expect(searchHuman.code).toBe(0);
+    expect(searchHuman.stdout).toContain("VINE BOOM SOUND");
+
+    const textMp4 = await invoke([
+      "create",
+      "--text", "LITERALMENTE YO",
+      "--text-style", "card",
+      "--bg", "#112233",
+      "--text-color", "#FFEE00",
+      "-a", wavPath,
+      "--json"
+    ]);
+    expect(textMp4.code).toBe(0);
+    const textData = JSON.parse(textMp4.stdout);
+    expect(textData).toMatchObject({
+      profile: "video-mp4",
+      output_px: "512x512",
+      sticker: { format: "png", width: 512, height: 512 }
+    });
+    expect(engine.lastVideoRequest?.matteColor).toBe("#112233");
+
+    const textWebpPath = path.join(workDir, "text-sticker.webp");
+    const textWebp = await invoke([
+      "create",
+      "--text", "OK",
+      "--transparent",
+      "--profile", "standard-webp",
+      "-o", textWebpPath
+    ]);
+    expect(textWebp.code).toBe(0);
+    expect(sniffImageHeader(new Uint8Array(await readFile(textWebpPath)))).toMatchObject({
+      format: "webp",
+      width: 512,
+      height: 512
+    });
   });
 
   it("returns exit code 2 for CLI input errors and exit code 1 for domain errors", async () => {
     expect((await invoke(["unknown-cmd"])).code).toBe(2);
+    expect((await invoke(["search"])).code).toBe(2);
+    expect((await invoke(["search", "boom", "--limit", "0"])).code).toBe(2);
+    expect((await invoke(["search", "boom", "--limit", "abc"])).code).toBe(2);
+    expect((await invoke(["create"])).code).toBe(2);
+    expect((await invoke(["create", pngPath, "--text", "conflict", "--profile", "standard-webp"])).code).toBe(2);
+    expect((await invoke(["create", pngPath, "--bg", "transparent", "--profile", "standard-webp"])).code).toBe(2);
     expect((await invoke(["create", pngPath])).code).toBe(2); // missing audio
     expect((await invoke(["create", pngPath, "-a", wavPath, "-u", "https://www.myinstants.com/en/instant/a/"])).code).toBe(2);
 

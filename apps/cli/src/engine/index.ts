@@ -5,4 +5,5 @@ export * from "./webp";
 export * from "./image";
 export * from "./audio";
 export * from "./video";
+export * from "./text-sticker";
 export * from "./node-media-engine";

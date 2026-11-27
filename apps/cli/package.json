@@ -18,8 +18,10 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/archivo-black": "^0.4.1",
     "@jsquash/webp": "^1.5.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@resvg/resvg-wasm": "^2.6.2",
     "@stiksound/core": "*",
     "@stiksound/media-web": "*",
     "@stiksound/providers": "*",
