@@ -169,7 +169,7 @@ Si el sistema operativo o el navegador no permite copiar videos al portapapeles,
 ---
 
 <details>
-<summary><strong>Para usuarios avanzados: CLI, servidor MCP, formatos técnicos y arquitectura</strong> (clic para expandir)</summary>
+<summary><strong>Para usuarios avanzados: CLI, servidor MCP, formatos técnicos, arquitectura y desarrollo</strong> (clic para expandir)</summary>
 
 ## 🤖 CLI Headless y Servidor MCP Local (Stickers con IA)
 
@@ -466,57 +466,6 @@ docs/            Iconos de la app y avisos legales (THIRD_PARTY.md)
 
 La idea principal es que la UI no contiene reglas de negocio: React llama a casos de uso de `packages/core`, y esos casos de uso delegan el trabajo de medios en un motor intercambiable (`WebMediaEngine` o componentes Rust en desktop).
 
-</details>
-
----
-
-## Instalación
-
-### Windows y macOS
-
-1. Abre [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest).
-2. Descarga el instalador o ejecutable para tu plataforma:
-   - Windows: archivo `windows-x64`.
-   - macOS: archivo `macos-universal`.
-3. Abre StikSound. No necesitas instalar FFmpeg ni un editor de video aparte para el flujo principal.
-
-En macOS, si aparece el aviso de desarrollador no verificado, haz clic derecho sobre la app y elige **Abrir**.
-
-### Extensión de Chrome, Edge o Brave
-
-1. Descarga `StikSound-*-chrome-extension.zip` desde [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest).
-2. Descomprímelo en una carpeta permanente.
-3. Abre `chrome://extensions/`.
-4. Activa **Modo de desarrollador**.
-5. Pulsa **Cargar descomprimida** y selecciona la carpeta descomprimida.
-6. Haz clic en el icono de StikSound: se abrirá el editor en una pestaña.
-
-### CLI y servidor MCP (macOS, Windows y Linux)
-
-1. Instala **Node.js 22+** y **FFmpeg** (`brew install ffmpeg`, `sudo apt install ffmpeg` o `winget install Gyan.FFmpeg`).
-2. Descarga `StikSound-*-cli.zip` desde [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest) y descomprímelo en una carpeta permanente.
-3. Ejecuta `bin/stiksound doctor` (macOS/Linux) o `bin\stiksound.cmd doctor` (Windows) para verificar tu entorno.
-4. Para conectarlo a Claude, Gemini o Codex/VS Code, consulta [Cómo agregar el servidor MCP](#-cómo-agregar-el-servidor-mcp-a-las-apps-más-populares) o ejecuta `bin/stiksound mcp --print-config`.
-
----
-
-## Privacidad y seguridad
-
-- No existe un servidor de StikSound que reciba tus imágenes o audios.
-- El procesamiento de medios se hace localmente en la app o en la pestaña de la extensión.
-- La única descarga de red integrada es MyInstants, y solo cuando pegas explícitamente un enlace.
-- MyInstants está restringido por política de URLs:
-  - solo HTTPS;
-  - solo `myinstants.com` y `www.myinstants.com`;
-  - sin usuario/contraseña embebidos;
-  - sin puertos distintos de 443;
-  - máximo 2 redirecciones;
-  - máximo 25 MB por audio;
-  - tiempo máximo de descarga de 20 segundos.
-- En desktop, la descarga se realiza desde el backend Rust para evitar limitaciones de CORS y aplica validaciones adicionales de direcciones IP privadas o reservadas.
-- Los paquetes ZIP se validan contra path traversal antes de abrirse.
-- Los sonidos descargados desde MyInstants pertenecen a sus respectivos autores.
-
 ---
 
 ## Desarrollo
@@ -578,6 +527,57 @@ npx tauri dev
 cd apps/desktop
 npx tauri build
 ```
+
+</details>
+
+---
+
+## Instalación
+
+### Windows y macOS
+
+1. Abre [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest).
+2. Descarga el instalador o ejecutable para tu plataforma:
+   - Windows: archivo `windows-x64`.
+   - macOS: archivo `macos-universal`.
+3. Abre StikSound. No necesitas instalar FFmpeg ni un editor de video aparte para el flujo principal.
+
+En macOS, si aparece el aviso de desarrollador no verificado, haz clic derecho sobre la app y elige **Abrir**.
+
+### Extensión de Chrome, Edge o Brave
+
+1. Descarga `StikSound-*-chrome-extension.zip` desde [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest).
+2. Descomprímelo en una carpeta permanente.
+3. Abre `chrome://extensions/`.
+4. Activa **Modo de desarrollador**.
+5. Pulsa **Cargar descomprimida** y selecciona la carpeta descomprimida.
+6. Haz clic en el icono de StikSound: se abrirá el editor en una pestaña.
+
+### CLI y servidor MCP (macOS, Windows y Linux)
+
+1. Instala **Node.js 22+** y **FFmpeg** (`brew install ffmpeg`, `sudo apt install ffmpeg` o `winget install Gyan.FFmpeg`).
+2. Descarga `StikSound-*-cli.zip` desde [**Releases**](https://github.com/SilverFeit/StikSound/releases/latest) y descomprímelo en una carpeta permanente.
+3. Ejecuta `bin/stiksound doctor` (macOS/Linux) o `bin\stiksound.cmd doctor` (Windows) para verificar tu entorno.
+4. Para conectarlo a Claude, Gemini o Codex/VS Code, consulta [Cómo agregar el servidor MCP](#-cómo-agregar-el-servidor-mcp-a-las-apps-más-populares) o ejecuta `bin/stiksound mcp --print-config`.
+
+---
+
+## Privacidad y seguridad
+
+- No existe un servidor de StikSound que reciba tus imágenes o audios.
+- El procesamiento de medios se hace localmente en la app o en la pestaña de la extensión.
+- La única descarga de red integrada es MyInstants, y solo cuando pegas explícitamente un enlace.
+- MyInstants está restringido por política de URLs:
+  - solo HTTPS;
+  - solo `myinstants.com` y `www.myinstants.com`;
+  - sin usuario/contraseña embebidos;
+  - sin puertos distintos de 443;
+  - máximo 2 redirecciones;
+  - máximo 25 MB por audio;
+  - tiempo máximo de descarga de 20 segundos.
+- En desktop, la descarga se realiza desde el backend Rust para evitar limitaciones de CORS y aplica validaciones adicionales de direcciones IP privadas o reservadas.
+- Los paquetes ZIP se validan contra path traversal antes de abrirse.
+- Los sonidos descargados desde MyInstants pertenecen a sus respectivos autores.
 
 ---
 

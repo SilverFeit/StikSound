@@ -76,7 +76,7 @@ StikSound combines **a square image** and **an audio clip** into a downloadable 
 ---
 
 <details>
-<summary><strong>For advanced users: headless CLI, local MCP server, internals, and repository layout</strong> (click to expand)</summary>
+<summary><strong>For advanced users: headless CLI, local MCP server, internals, repository layout, and development</strong> (click to expand)</summary>
 
 ## 🤖 Headless CLI & Local MCP Server (AI Stickers)
 
@@ -200,6 +200,20 @@ crates/
 docs/            App icons & third-party license notices (THIRD_PARTY.md)
 ```
 
+---
+
+## Development
+
+```bash
+git clone https://github.com/SilverFeit/StikSound.git
+cd StikSound
+npm install
+npm run typecheck
+npm test
+npm run build
+cargo test --workspace --exclude stiksound-desktop
+```
+
 </details>
 
 ---
@@ -229,18 +243,6 @@ docs/            App icons & third-party license notices (THIRD_PARTY.md)
 - The only network request is MyInstants resolution (Desktop & Chrome Extension only), restricted by strict HTTPS allowlist, redirect cap, IP filtering (blocking private/loopback ranges in Rust), and 25 MB / 20 s limits.
 
 ---
-
-## Development
-
-```bash
-git clone https://github.com/SilverFeit/StikSound.git
-cd StikSound
-npm install
-npm run typecheck
-npm test
-npm run build
-cargo test --workspace --exclude stiksound-desktop
-```
 
 ## License
 
