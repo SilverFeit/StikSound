@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{Cursor, Read, Write};
-use std::path::{Component, Path};
+use std::io::{self, Cursor, Read, Write};
+use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::Value;
 use thiserror::Error;
@@ -129,35 +130,212 @@ pub fn read_zip_package(zip_bytes: &[u8]) -> Result<HashMap<String, Vec<u8>>, Pr
     Ok(out)
 }
 
-/// Atomically publishes `bytes` to `destination` via a sibling `.tmp` file so a crash
-/// or failure leaves any previous file intact.
+const MAX_TEMP_ATTEMPTS: u32 = 32;
+
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+#[cfg(windows)]
+static REPLACE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Atomically publishes `bytes` to `destination`.
+///
+/// The artifact is written to a uniquely named sibling temporary file, flushed, synced and
+/// only then swapped into place, so a crash or failure always leaves the previous artifact
+/// intact. Concurrent publications to the same destination use distinct temporary files and
+/// follow last-writer-wins semantics: the destination is always one complete artifact.
 pub fn atomic_publish_file(destination: &Path, bytes: &[u8]) -> Result<(), ProjectStoreError> {
-    let parent = destination
-        .parent()
-        .ok_or_else(|| ProjectStoreError::PackageInvalid("Destination has no parent".to_string()))?;
+    publish(destination, bytes, replace_file)
+}
+
+fn publish(
+    destination: &Path,
+    bytes: &[u8],
+    replace: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> Result<(), ProjectStoreError> {
+    let parent = destination.parent().ok_or_else(|| {
+        ProjectStoreError::PackageInvalid("Destination has no parent".to_string())
+    })?;
     fs::create_dir_all(parent)?;
     let file_name = destination
         .file_name()
         .and_then(|n| n.to_str())
-        .ok_or_else(|| ProjectStoreError::PackageInvalid("Invalid destination file name".to_string()))?;
-    let tmp_path = parent.join(format!("{file_name}.tmp"));
+        .ok_or_else(|| {
+            ProjectStoreError::PackageInvalid("Invalid destination file name".to_string())
+        })?;
+    let (tmp_path, mut tmp) = create_temp_file(parent, file_name)?;
 
-    {
-        let mut f = File::create(&tmp_path)?;
-        f.write_all(bytes)?;
-        f.sync_all()?;
+    let written = tmp.write_all(bytes).and_then(|()| tmp.sync_all());
+    drop(tmp);
+    if let Err(err) = written {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(err.into());
     }
 
-    if destination.exists() {
-        fs::remove_file(destination)?;
+    #[cfg(unix)]
+    let permissions = fs::metadata(destination)
+        .ok()
+        .map(|meta| meta.permissions());
+    #[cfg(unix)]
+    let prepared = match permissions {
+        Some(perms) => fs::set_permissions(&tmp_path, perms),
+        None => Ok(()),
+    };
+    #[cfg(not(unix))]
+    let prepared: io::Result<()> = Ok(());
+
+    let published = prepared.and_then(|()| replace(&tmp_path, destination));
+    if let Err(err) = published {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(err.into());
     }
-    fs::rename(&tmp_path, destination)?;
     Ok(())
+}
+
+fn create_temp_file(parent: &Path, file_name: &str) -> io::Result<(PathBuf, File)> {
+    for _ in 0..MAX_TEMP_ATTEMPTS {
+        let attempt = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = parent.join(format!(".stiksound-{}-{attempt}.tmp", std::process::id()));
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(file) => return Ok((path, file)),
+            Err(err) if err.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(err),
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        format!("Could not create a unique temporary file for {file_name}"),
+    ))
+}
+
+#[cfg(not(windows))]
+fn replace_file(tmp: &Path, destination: &Path) -> io::Result<()> {
+    fs::rename(tmp, destination)
+}
+
+#[cfg(windows)]
+fn replace_file(tmp: &Path, destination: &Path) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+
+    const REPLACEFILE_IGNORE_MERGE_ERRORS: u32 = 0x0000_0002;
+    const REPLACE_ATTEMPTS: u32 = 10;
+    const INITIAL_BACKOFF_MS: u64 = 1;
+    const MAX_BACKOFF_MS: u64 = 25;
+    const ERROR_FILE_NOT_FOUND: i32 = 2;
+    const ERROR_PATH_NOT_FOUND: i32 = 3;
+    const ERROR_SHARING_VIOLATION: i32 = 32;
+    const ERROR_UNABLE_TO_REMOVE_REPLACED: i32 = 1175;
+    const ERROR_UNABLE_TO_MOVE_REPLACEMENT: i32 = 1176;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn ReplaceFileW(
+            replaced: *const u16,
+            replacement: *const u16,
+            backup: *const u16,
+            flags: u32,
+            exclude: *mut core::ffi::c_void,
+            reserved: *mut core::ffi::c_void,
+        ) -> i32;
+    }
+
+    fn wide(path: &Path) -> Vec<u16> {
+        path.as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect()
+    }
+
+    let replaced = wide(destination);
+    let replacement = wide(tmp);
+
+    // ReplaceFileW is not safe to call concurrently on the same destination: parallel
+    // replacements can fail with ERROR_UNABLE_TO_REMOVE_REPLACED, so serialize them.
+    let _guard = REPLACE_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
+
+    let mut last_error: Option<io::Error> = None;
+    let mut backoff_ms = INITIAL_BACKOFF_MS;
+    for attempt in 0..REPLACE_ATTEMPTS {
+        let replaced_ok = unsafe {
+            ReplaceFileW(
+                replaced.as_ptr(),
+                replacement.as_ptr(),
+                std::ptr::null(),
+                REPLACEFILE_IGNORE_MERGE_ERRORS,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        };
+        if replaced_ok != 0 {
+            return Ok(());
+        }
+
+        let err = io::Error::last_os_error();
+        match err.raw_os_error() {
+            Some(ERROR_FILE_NOT_FOUND) | Some(ERROR_PATH_NOT_FOUND) => {
+                return fs::rename(tmp, destination)
+            }
+            Some(ERROR_UNABLE_TO_REMOVE_REPLACED)
+            | Some(ERROR_UNABLE_TO_MOVE_REPLACEMENT)
+            | Some(ERROR_SHARING_VIOLATION) => {
+                last_error = Some(err);
+                if attempt + 1 < REPLACE_ATTEMPTS {
+                    std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
+                    backoff_ms = (backoff_ms * 2).min(MAX_BACKOFF_MS);
+                }
+            }
+            _ => return Err(err),
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| io::Error::other("ReplaceFileW failed without an error")))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::{Arc, Barrier};
+
+    static TEST_DIR_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    struct TestDir(PathBuf);
+
+    impl TestDir {
+        fn new(tag: &str) -> Self {
+            let dir = std::env::temp_dir().join(format!(
+                "stiksound_store_{tag}_{}_{}",
+                std::process::id(),
+                TEST_DIR_COUNTER.fetch_add(1, Ordering::Relaxed)
+            ));
+            let _ = fs::remove_dir_all(&dir);
+            fs::create_dir_all(&dir).unwrap();
+            Self(dir)
+        }
+
+        fn path(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn temp_entries(dir: &Path) -> Vec<String> {
+        fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".tmp"))
+            .collect()
+    }
 
     #[test]
     fn sec006_sec007_rejects_zip_slip_entries() {
@@ -183,18 +361,16 @@ mod tests {
     fn round_trips_package_and_atomic_publish() {
         let manifest = br#"{"schema_version":"1.0","project":{"id":"prj_1234"}}"#;
         let sticker = b"pngbytes";
-        let zip = write_zip_bytes(&[("manifest.json", manifest), ("assets/stk_1.png", sticker)]).unwrap();
+        let zip =
+            write_zip_bytes(&[("manifest.json", manifest), ("assets/stk_1.png", sticker)]).unwrap();
         let read_back = read_zip_package(&zip).unwrap();
         assert_eq!(read_back.get("assets/stk_1.png").unwrap(), sticker);
 
-        let dir = std::env::temp_dir().join("stiksound_store_test");
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        let dest = dir.join("project.stiksound.zip");
+        let dir = TestDir::new("round_trip");
+        let dest = dir.path().join("project.stiksound.zip");
         atomic_publish_file(&dest, &zip).unwrap();
-        assert!(dest.exists());
-        assert!(!dir.join("project.stiksound.zip.tmp").exists());
-        let _ = fs::remove_dir_all(&dir);
+        assert_eq!(fs::read(&dest).unwrap(), zip);
+        assert!(temp_entries(dir.path()).is_empty());
     }
 
     #[test]
@@ -229,5 +405,185 @@ mod tests {
         assert_eq!(read_back.get("sound.ogg").unwrap(), b"OggS");
 
         assert!(write_zip_bytes(&[("../sticker.webp", b"no")]).is_err());
+    }
+
+    #[test]
+    fn publishes_new_artifact_with_complete_contents() {
+        let dir = TestDir::new("publish_new");
+        let dest = dir.path().join("project.stiksound.zip");
+        let payload = vec![7u8; 256 * 1024];
+
+        atomic_publish_file(&dest, &payload).unwrap();
+
+        assert_eq!(fs::read(&dest).unwrap(), payload);
+        assert!(temp_entries(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn publishes_with_a_destination_name_near_the_component_limit() {
+        let dir = TestDir::new("long_name");
+        let dest = dir.path().join(format!("{}.bin", "a".repeat(240)));
+        let payload = b"payload";
+
+        atomic_publish_file(&dest, payload).unwrap();
+
+        assert_eq!(fs::read(&dest).unwrap(), payload);
+        assert!(temp_entries(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn replaces_existing_artifact_with_complete_contents() {
+        let dir = TestDir::new("replace_existing");
+        let dest = dir.path().join("artifact.bin");
+        atomic_publish_file(&dest, b"old").unwrap();
+
+        atomic_publish_file(&dest, b"new").unwrap();
+
+        assert_eq!(fs::read(&dest).unwrap(), b"new");
+        assert!(temp_entries(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn failed_replacement_preserves_previous_artifact_and_cleans_up() {
+        let dir = TestDir::new("failed_replacement");
+        let dest = dir.path().join("artifact.bin");
+        atomic_publish_file(&dest, b"old").unwrap();
+
+        let err = publish(&dest, b"new", |_tmp, _dest| {
+            Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "injected replacement failure",
+            ))
+        })
+        .unwrap_err();
+
+        assert!(matches!(err, ProjectStoreError::Io(_)));
+        assert_eq!(fs::read(&dest).unwrap(), b"old");
+        assert!(temp_entries(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn failed_replacement_into_directory_cleans_up() {
+        let dir = TestDir::new("replace_directory");
+        let dest = dir.path().join("artifact.bin");
+        fs::create_dir(&dest).unwrap();
+
+        let err = atomic_publish_file(&dest, b"payload").unwrap_err();
+
+        assert!(matches!(err, ProjectStoreError::Io(_)));
+        assert!(dest.is_dir());
+        assert!(temp_entries(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn concurrent_writers_never_expose_partial_artifacts() {
+        const WRITERS: usize = 8;
+        const REPETITIONS: usize = 5;
+
+        let dir = TestDir::new("concurrent");
+        let dest = dir.path().join("artifact.bin");
+        let payloads: Vec<Vec<u8>> = (0..WRITERS as u8)
+            .map(|index| vec![index + 1; 128 * 1024])
+            .collect();
+        let allowed = payloads.clone();
+
+        let barrier = Arc::new(Barrier::new(WRITERS + 1));
+        let (published_tx, published_rx) = std::sync::mpsc::sync_channel::<()>(1);
+
+        let reader_dest = dest.clone();
+        let reader_allowed = allowed.clone();
+        let reader_barrier = Arc::clone(&barrier);
+        let reader = std::thread::spawn(move || {
+            fn transient(err: &io::Error) -> bool {
+                matches!(
+                    err.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
+                ) || err.raw_os_error() == Some(32)
+            }
+
+            reader_barrier.wait();
+            let mut observations = 0usize;
+            while published_rx.recv().is_ok() {
+                let mut retries = 0u32;
+                let bytes = loop {
+                    match fs::read(&reader_dest) {
+                        Ok(bytes) => break bytes,
+                        Err(err) if transient(&err) && retries < 100_000 => {
+                            retries += 1;
+                            std::thread::yield_now();
+                        }
+                        Err(err) => panic!("reader failed to read the artifact: {err}"),
+                    }
+                };
+                assert!(
+                    reader_allowed.contains(&bytes),
+                    "observed a partial or corrupt artifact of {} bytes",
+                    bytes.len()
+                );
+                observations += 1;
+            }
+            observations
+        });
+
+        let writers: Vec<_> = payloads
+            .into_iter()
+            .map(|payload| {
+                let dest = dest.clone();
+                let barrier = Arc::clone(&barrier);
+                let published = published_tx.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    for _ in 0..REPETITIONS {
+                        atomic_publish_file(&dest, &payload).unwrap();
+                        published.send(()).unwrap();
+                    }
+                })
+            })
+            .collect();
+        drop(published_tx);
+
+        for writer in writers {
+            writer.join().unwrap();
+        }
+        let observations = reader.join().unwrap();
+
+        assert_eq!(
+            observations,
+            WRITERS * REPETITIONS,
+            "reader did not observe the publication workload"
+        );
+        let final_bytes = fs::read(&dest).unwrap();
+        assert!(allowed.contains(&final_bytes), "final artifact is corrupt");
+        assert!(temp_entries(dir.path()).is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn replacement_preserves_existing_unix_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = TestDir::new("unix_permissions");
+        let dest = dir.path().join("artifact.bin");
+        atomic_publish_file(&dest, b"old").unwrap();
+        fs::set_permissions(&dest, fs::Permissions::from_mode(0o640)).unwrap();
+
+        atomic_publish_file(&dest, b"new").unwrap();
+
+        let mode = fs::metadata(&dest).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o640);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_replacement_preserves_destination_metadata() {
+        let dir = TestDir::new("windows_metadata");
+        let dest = dir.path().join("artifact.bin");
+        atomic_publish_file(&dest, b"old").unwrap();
+        let created = fs::metadata(&dest).unwrap().created().unwrap();
+
+        atomic_publish_file(&dest, b"new").unwrap();
+
+        assert_eq!(fs::read(&dest).unwrap(), b"new");
+        assert_eq!(fs::metadata(&dest).unwrap().created().unwrap(), created);
     }
 }
