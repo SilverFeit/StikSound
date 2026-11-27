@@ -75,6 +75,9 @@ StikSound combines **a square image** and **an audio clip** into a downloadable 
 
 ---
 
+<details>
+<summary><strong>For advanced users: headless CLI, local MCP server, internals, and repository layout</strong> (click to expand)</summary>
+
 ## 🤖 Headless CLI & Local MCP Server (AI Stickers)
 
 StikSound ships a **cross-platform CLI** (`macOS`, `Windows`, `Linux`) with a built-in **local MCP (Model Context Protocol) server** (`stiksound mcp`) so you can build stickers from the terminal or directly from an AI assistant while keeping all media processing local.
@@ -196,6 +199,8 @@ crates/
   project-store/ Rust atomic file & package store
 docs/            App icons & third-party license notices (THIRD_PARTY.md)
 ```
+
+</details>
 
 ---
 
