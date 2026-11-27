@@ -194,7 +194,7 @@ fn publish(
 fn create_temp_file(parent: &Path, file_name: &str) -> io::Result<(PathBuf, File)> {
     for _ in 0..MAX_TEMP_ATTEMPTS {
         let attempt = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-        let path = parent.join(format!(".{file_name}.{}.{attempt}.tmp", std::process::id()));
+        let path = parent.join(format!(".stiksound-{}-{attempt}.tmp", std::process::id()));
         match fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -221,7 +221,9 @@ fn replace_file(tmp: &Path, destination: &Path) -> io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
 
     const REPLACEFILE_IGNORE_MERGE_ERRORS: u32 = 0x0000_0002;
-    const REPLACE_ATTEMPTS: u32 = 32;
+    const REPLACE_ATTEMPTS: u32 = 10;
+    const INITIAL_BACKOFF_MS: u64 = 1;
+    const MAX_BACKOFF_MS: u64 = 25;
     const ERROR_FILE_NOT_FOUND: i32 = 2;
     const ERROR_PATH_NOT_FOUND: i32 = 3;
     const ERROR_SHARING_VIOLATION: i32 = 32;
@@ -256,6 +258,8 @@ fn replace_file(tmp: &Path, destination: &Path) -> io::Result<()> {
         .lock()
         .unwrap_or_else(|poison| poison.into_inner());
 
+    let mut last_error: Option<io::Error> = None;
+    let mut backoff_ms = INITIAL_BACKOFF_MS;
     for attempt in 0..REPLACE_ATTEMPTS {
         let replaced_ok = unsafe {
             ReplaceFileW(
@@ -278,23 +282,25 @@ fn replace_file(tmp: &Path, destination: &Path) -> io::Result<()> {
             }
             Some(ERROR_UNABLE_TO_REMOVE_REPLACED)
             | Some(ERROR_UNABLE_TO_MOVE_REPLACEMENT)
-            | Some(ERROR_SHARING_VIOLATION)
-                if attempt + 1 < REPLACE_ATTEMPTS =>
-            {
-                std::thread::yield_now();
+            | Some(ERROR_SHARING_VIOLATION) => {
+                last_error = Some(err);
+                if attempt + 1 < REPLACE_ATTEMPTS {
+                    std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
+                    backoff_ms = (backoff_ms * 2).min(MAX_BACKOFF_MS);
+                }
             }
             _ => return Err(err),
         }
     }
 
-    Err(io::Error::last_os_error())
+    Err(last_error.unwrap_or_else(|| io::Error::other("ReplaceFileW failed without an error")))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicBool, AtomicUsize};
-    use std::sync::Arc;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::{Arc, Barrier};
 
     static TEST_DIR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -414,6 +420,18 @@ mod tests {
     }
 
     #[test]
+    fn publishes_with_a_destination_name_near_the_component_limit() {
+        let dir = TestDir::new("long_name");
+        let dest = dir.path().join(format!("{}.bin", "a".repeat(240)));
+        let payload = b"payload";
+
+        atomic_publish_file(&dest, payload).unwrap();
+
+        assert_eq!(fs::read(&dest).unwrap(), payload);
+        assert!(temp_entries(dir.path()).is_empty());
+    }
+
+    #[test]
     fn replaces_existing_artifact_with_complete_contents() {
         let dir = TestDir::new("replace_existing");
         let dest = dir.path().join("artifact.bin");
@@ -459,26 +477,50 @@ mod tests {
 
     #[test]
     fn concurrent_writers_never_expose_partial_artifacts() {
+        const WRITERS: usize = 8;
+        const REPETITIONS: usize = 5;
+
         let dir = TestDir::new("concurrent");
         let dest = dir.path().join("artifact.bin");
-        let payloads: Vec<Vec<u8>> = (0..8u8).map(|index| vec![index + 1; 128 * 1024]).collect();
+        let payloads: Vec<Vec<u8>> = (0..WRITERS as u8)
+            .map(|index| vec![index + 1; 128 * 1024])
+            .collect();
         let allowed = payloads.clone();
 
-        let running = Arc::new(AtomicBool::new(true));
+        let barrier = Arc::new(Barrier::new(WRITERS + 1));
+        let (published_tx, published_rx) = std::sync::mpsc::sync_channel::<()>(1);
+
         let reader_dest = dest.clone();
         let reader_allowed = allowed.clone();
-        let reader_running = Arc::clone(&running);
+        let reader_barrier = Arc::clone(&barrier);
         let reader = std::thread::spawn(move || {
+            fn transient(err: &io::Error) -> bool {
+                matches!(
+                    err.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
+                ) || err.raw_os_error() == Some(32)
+            }
+
+            reader_barrier.wait();
             let mut observations = 0usize;
-            while reader_running.load(Ordering::Relaxed) {
-                if let Ok(bytes) = fs::read(&reader_dest) {
-                    assert!(
-                        reader_allowed.contains(&bytes),
-                        "observed a partial or corrupt artifact of {} bytes",
-                        bytes.len()
-                    );
-                    observations += 1;
-                }
+            while published_rx.recv().is_ok() {
+                let mut retries = 0u32;
+                let bytes = loop {
+                    match fs::read(&reader_dest) {
+                        Ok(bytes) => break bytes,
+                        Err(err) if transient(&err) && retries < 100_000 => {
+                            retries += 1;
+                            std::thread::yield_now();
+                        }
+                        Err(err) => panic!("reader failed to read the artifact: {err}"),
+                    }
+                };
+                assert!(
+                    reader_allowed.contains(&bytes),
+                    "observed a partial or corrupt artifact of {} bytes",
+                    bytes.len()
+                );
+                observations += 1;
             }
             observations
         });
@@ -487,19 +529,29 @@ mod tests {
             .into_iter()
             .map(|payload| {
                 let dest = dest.clone();
+                let barrier = Arc::clone(&barrier);
+                let published = published_tx.clone();
                 std::thread::spawn(move || {
-                    for _ in 0..5 {
+                    barrier.wait();
+                    for _ in 0..REPETITIONS {
                         atomic_publish_file(&dest, &payload).unwrap();
+                        published.send(()).unwrap();
                     }
                 })
             })
             .collect();
+        drop(published_tx);
+
         for writer in writers {
             writer.join().unwrap();
         }
-        running.store(false, Ordering::Relaxed);
-        reader.join().unwrap();
+        let observations = reader.join().unwrap();
 
+        assert_eq!(
+            observations,
+            WRITERS * REPETITIONS,
+            "reader did not observe the publication workload"
+        );
         let final_bytes = fs::read(&dest).unwrap();
         assert!(allowed.contains(&final_bytes), "final artifact is corrupt");
         assert!(temp_entries(dir.path()).is_empty());
