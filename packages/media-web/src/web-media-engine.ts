@@ -420,6 +420,7 @@ export class WebMediaEngine implements MediaEngine {
             }
           ];
 
+      // Safari and macOS WKWebView can encode Opus but not AAC. Opus is valid inside MP4.
       const audioCandidates: Array<{ codec: string; bitrates: number[] }> = isWebm
         ? [{ codec: "opus", bitrates: [64_000] }]
         : [
