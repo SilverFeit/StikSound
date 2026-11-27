@@ -420,8 +420,13 @@ export class WebMediaEngine implements MediaEngine {
             }
           ];
 
-      const audioBitrates = isWebm ? [64_000] : [96_000, 64_000, 128_000];
-      const audioCodec = isWebm ? "opus" : "mp4a.40.2";
+      // Safari and macOS WKWebView can encode Opus but not AAC. Opus is valid inside MP4.
+      const audioCandidates: Array<{ codec: string; bitrates: number[] }> = isWebm
+        ? [{ codec: "opus", bitrates: [64_000] }]
+        : [
+            { codec: "mp4a.40.2", bitrates: [96_000, 64_000, 128_000] },
+            { codec: "opus", bitrates: [64_000] }
+          ];
 
       try {
         let chosenVideoConfig: ExtendedVideoEncoderConfig | null = null;
@@ -434,18 +439,21 @@ export class WebMediaEngine implements MediaEngine {
         }
 
         let chosenAudioConfig: AudioEncoderConfig | null = null;
-        for (const bitrate of audioBitrates) {
-          const candidate: AudioEncoderConfig = {
-            codec: audioCodec,
-            sampleRate: 48000,
-            numberOfChannels: 1,
-            bitrate
-          };
-          const aSupport = await AudioEncoder.isConfigSupported(candidate);
-          if (aSupport.supported) {
-            chosenAudioConfig = candidate;
-            break;
+        for (const ac of audioCandidates) {
+          for (const bitrate of ac.bitrates) {
+            const candidate: AudioEncoderConfig = {
+              codec: ac.codec,
+              sampleRate: 48000,
+              numberOfChannels: 1,
+              bitrate
+            };
+            const aSupport = await AudioEncoder.isConfigSupported(candidate);
+            if (aSupport.supported) {
+              chosenAudioConfig = candidate;
+              break;
+            }
           }
+          if (chosenAudioConfig) break;
         }
 
         if (chosenVideoConfig && chosenAudioConfig) {
@@ -508,11 +516,12 @@ export class WebMediaEngine implements MediaEngine {
 
     const mp4Target = isWebm ? null : new Mp4Target();
     const webmTarget = isWebm ? new WebmTarget() : null;
+    const mp4AudioCodec: "aac" | "opus" = audioConfig.codec === "opus" ? "opus" : "aac";
     const mp4Muxer = mp4Target
       ? new Mp4Muxer({
           target: mp4Target,
           video: { codec: "avc", width: outputSize, height: outputSize },
-          audio: { codec: "aac", sampleRate: 48000, numberOfChannels: 1 },
+          audio: { codec: mp4AudioCodec, sampleRate: 48000, numberOfChannels: 1 },
           fastStart: "in-memory"
         })
       : null;
@@ -565,7 +574,8 @@ export class WebMediaEngine implements MediaEngine {
       vf.close();
     }
 
-    const chunkSamples = isWebm ? 4800 : 4096; // 4096 = 4 * 1024 AAC frames; 4800 = 5 * 960 Opus frames
+    const isOpusAudio = audioConfig.codec === "opus";
+    const chunkSamples = isOpusAudio ? 4800 : 4096; // 4096 = 4 * 1024 AAC frames; 4800 = 5 * 960 Opus frames
     for (let offset = 0; offset < pcm.samples.length; offset += chunkSamples) {
       const slice = pcm.samples.subarray(offset, Math.min(pcm.samples.length, offset + chunkSamples));
       const audioData = new AudioData({
