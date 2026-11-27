@@ -41,7 +41,7 @@ pub fn validate_zip_entry_path(entry: &str) -> Result<(), ProjectStoreError> {
             )));
         }
     }
-    if entry == "manifest.json" {
+    if entry == "manifest.json" || entry == "sticker.webp" || entry == "sound.ogg" {
         return Ok(());
     }
     let parts: Vec<&str> = entry.split('/').collect();
@@ -195,5 +195,39 @@ mod tests {
         assert!(dest.exists());
         assert!(!dir.join("project.stiksound.zip.tmp").exists());
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn accepts_exact_sound_bundle_root_names() {
+        assert!(validate_zip_entry_path("manifest.json").is_ok());
+        assert!(validate_zip_entry_path("sticker.webp").is_ok());
+        assert!(validate_zip_entry_path("sound.ogg").is_ok());
+        assert!(validate_zip_entry_path("assets/stk_1.png").is_ok());
+        assert!(validate_zip_entry_path("assets/sticker.webp").is_ok());
+
+        assert!(validate_zip_entry_path("").is_err());
+        assert!(validate_zip_entry_path("../sticker.webp").is_err());
+        assert!(validate_zip_entry_path("assets/../../secret").is_err());
+        assert!(validate_zip_entry_path("/sticker.webp").is_err());
+        assert!(validate_zip_entry_path("C:\\evil.txt").is_err());
+        assert!(validate_zip_entry_path("sticker.webp/evil").is_err());
+        assert!(validate_zip_entry_path("sound.ogg/../x").is_err());
+        assert!(validate_zip_entry_path("STICKER.WEBP").is_err());
+        assert!(validate_zip_entry_path("sound.OGG").is_err());
+        assert!(validate_zip_entry_path("sticker.webp.bak").is_err());
+        assert!(validate_zip_entry_path("other.txt").is_err());
+
+        let manifest = br#"{"schema_version":"1.0","project":{"id":"prj_1234"}}"#;
+        let zip = write_zip_bytes(&[
+            ("manifest.json", manifest),
+            ("sticker.webp", b"RIFF"),
+            ("sound.ogg", b"OggS"),
+        ])
+        .unwrap();
+        let read_back = read_zip_package(&zip).unwrap();
+        assert_eq!(read_back.get("sticker.webp").unwrap(), b"RIFF");
+        assert_eq!(read_back.get("sound.ogg").unwrap(), b"OggS");
+
+        assert!(write_zip_bytes(&[("../sticker.webp", b"no")]).is_err());
     }
 }
