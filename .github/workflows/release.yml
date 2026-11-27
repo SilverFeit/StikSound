@@ -198,7 +198,7 @@ jobs:
 
             | Archivo | Cómo usar |
             | --- | --- |
-            | `StikSound-*-cli.zip` | Requiere **Node.js 22** y **FFmpeg** en el sistema. Descomprime y ejecuta `bin/stiksound` (macOS y Linux) o `bin\stiksound.cmd` (Windows). `stiksound mcp` arranca el servidor MCP. No modifica el núcleo de las apps gráficas. |
+            | `StikSound-*-cli.zip` | Requiere **Node.js 22** y **FFmpeg** en el sistema. Descomprime y ejecuta `bin/stiksound` (macOS y Linux) o `bin\stiksound.cmd` (Windows). Incluye `stiksound search <query>`, creación desde texto (`--text`) y el servidor MCP local `stiksound mcp` con 5 tools (`search_sounds`, `create_sound_sticker`, `probe_media`, `export_project`, `check_environment`). No modifica el núcleo de las apps gráficas. |
 
             ---
 
@@ -226,7 +226,7 @@ jobs:
 
             | File | How to use |
             | --- | --- |
-            | `StikSound-*-cli.zip` | Requires **Node.js 22** and **FFmpeg** on the machine. Unzip and run `bin/stiksound` (macOS and Linux) or `bin\stiksound.cmd` (Windows). `stiksound mcp` starts the MCP server. It does not change the GUI apps. |
+            | `StikSound-*-cli.zip` | Requires **Node.js 22** and **FFmpeg** on the machine. Unzip and run `bin/stiksound` (macOS and Linux) or `bin\stiksound.cmd` (Windows). Includes `stiksound search <query>`, text-to-sticker (`--text`), and the local MCP server `stiksound mcp` exposing 5 tools (`search_sounds`, `create_sound_sticker`, `probe_media`, `export_project`, `check_environment`). It does not change the GUI apps. |
 
             </details>
 
@@ -254,7 +254,7 @@ jobs:
 
             | Arquivo | Como usar |
             | --- | --- |
-            | `StikSound-*-cli.zip` | Exige **Node.js 22** e **FFmpeg** na máquina. Extraia e execute `bin/stiksound` (macOS e Linux) ou `bin\stiksound.cmd` (Windows). `stiksound mcp` inicia o servidor MCP. Não altera os apps gráficos. |
+            | `StikSound-*-cli.zip` | Exige **Node.js 22** e **FFmpeg** na máquina. Extraia e execute `bin/stiksound` (macOS e Linux) ou `bin\stiksound.cmd` (Windows). Inclui `stiksound search <query>`, criação a partir de texto (`--text`) e o servidor MCP local `stiksound mcp` com 5 tools (`search_sounds`, `create_sound_sticker`, `probe_media`, `export_project`, `check_environment`). Não altera os apps gráficos. |
 
             </details>
           files: artifacts/*
