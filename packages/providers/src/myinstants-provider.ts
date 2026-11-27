@@ -1,11 +1,21 @@
 import { LIMITS, StikSoundError, type SoundProvider } from "@stiksound/core";
-import { extractMyInstantsFromHtml } from "./myinstants-extractor";
+import {
+  extractMyInstantsFromHtml,
+  extractMyInstantsSearchResults,
+  type MyInstantsSearchResult
+} from "./myinstants-extractor";
 import { validateMyInstantsUrl } from "./url-policy";
 
 export type FetchLike = typeof fetch;
 
+export interface MyInstantsSearchOptions {
+  limit?: number;
+  locale?: string;
+}
+
 const DIRECT_MEDIA_PATH_REGEX = /^\/media\/sounds\/[^/]+\.(mp3|wav|ogg|m4a)$/i;
 const INSTANT_PAGE_PATH_REGEX = /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?instant\/[^/]+\/?$/i;
+const LOCALE_SEGMENT_REGEX = /^[a-z]{2}(?:-[a-z]{2})?$/i;
 
 export class MyInstantsProvider implements SoundProvider {
   public readonly id = "myinstants";
@@ -19,6 +29,21 @@ export class MyInstantsProvider implements SoundProvider {
     } catch {
       return false;
     }
+  }
+
+  public async search(rawQuery: string, options: MyInstantsSearchOptions = {}): Promise<MyInstantsSearchResult[]> {
+    const query = rawQuery.trim();
+    if (!query || query.length > 120) {
+      throw new StikSoundError("url-rejected", "Search query must be between 1 and 120 characters.");
+    }
+    const locale = (options.locale ?? "en").trim().toLowerCase();
+    if (!LOCALE_SEGMENT_REGEX.test(locale)) {
+      throw new StikSoundError("url-rejected", `Invalid MyInstants search locale: ${options.locale}`);
+    }
+    const searchUrl = `https://www.myinstants.com/${locale}/search/?name=${encodeURIComponent(query)}`;
+    const htmlBytes = await this.fetchLimitedBytes(searchUrl, 2 * 1024 * 1024);
+    const html = new TextDecoder("utf-8", { fatal: false }).decode(htmlBytes);
+    return extractMyInstantsSearchResults(html, options.limit ?? 5);
   }
 
   public async resolve(rawUrl: string): Promise<{

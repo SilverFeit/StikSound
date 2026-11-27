@@ -91,4 +91,8 @@ The manifest records the source URL so the user can see where the clip came from
 
 The about screen states that sounds from MyInstants stay the property of their owners and that StikSound does not grant a license to those sounds.
 
-v1 does not embed a search box, a trending list, or a cache shared between projects. Each project downloads a sound only after the user pastes its URL.
+v1 GUI apps (Desktop, Extension, Web) do not embed a search box, a trending list, or a cache shared between projects; each project downloads a sound only after the user pastes its URL.
+
+## CLI / MCP search extension
+
+The headless CLI and local MCP server (`@stiksound/cli`) may call `MyInstantsProvider.search(query, { limit, locale })` against `https://www.myinstants.com/<locale>/search/?name=<encoded>`. Search requests follow the exact same HTTPS allowlist, redirect cap (max 2), timeout (20 s), 2 MB HTML body limit, and DNS private-IP rejection as instant page fetches. Every returned `page_url` and `media_url` is validated through `validateMyInstantsUrl`.

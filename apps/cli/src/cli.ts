@@ -3,17 +3,21 @@ import { StikSoundError } from "@stiksound/core";
 import packageJson from "../package.json";
 import { CliInputError } from "./errors";
 import { resolveUserPath, writeExactFile } from "./files";
-import { formatDoctorHuman, formatExportHuman, formatProbeHuman } from "./format";
+import { formatDoctorHuman, formatExportHuman, formatProbeHuman, formatSearchHuman } from "./format";
 import {
   ENABLED_PROFILES,
+  TEXT_STICKER_STYLES,
   createServiceContext,
   createSoundSticker,
   exportSavedProject,
   isEnabledProfile,
+  isTextStickerStyle,
   probeMedia,
   runDoctor,
+  searchSounds,
   type EnabledProfile,
-  type ServiceOptions
+  type ServiceOptions,
+  type TextStickerStyle
 } from "./service";
 import { parseTimeToMs } from "./time-parse";
 
@@ -41,10 +45,11 @@ Usage:
   stiksound <command> [options]
 
 Commands:
-  create <image>       Create a sound sticker from an image, GIF or clip + audio / MyInstants URL
+  create <image>       Create a sound sticker from an image/GIF/clip or --text + audio / MyInstants URL
+  search <query>       Search sound effects on MyInstants by keyword or description
   probe  <file>        Inspect an image, GIF, clip, audio file or .stiksound.zip project
   export <project>     Re-export a saved .stiksound.zip project (optionally changing profile/edits)
-  doctor               Check local FFmpeg, ffprobe, encoders and WebP WASM availability
+  doctor               Check local FFmpeg, ffprobe, encoders, WebP WASM and text renderer availability
   mcp                  Start the optional local MCP server over stdio (or print client config)
 
 Global options:
@@ -52,10 +57,11 @@ Global options:
   -v, --version        Show CLI version
 
 Examples:
+  stiksound search "vine boom" --limit 5
   stiksound probe ~/Pictures/cat.png
   stiksound probe sound.mp3 --json
   stiksound create cat.png -a boom.mp3 --trim loudest -d 5
-  stiksound create cat.png -u https://www.myinstants.com/en/instant/vine-boom-sound-70972/ -o out.mp4
+  stiksound create --text "LITERALMENTE YO" -u https://www.myinstants.com/en/instant/vine-boom-sound-70972/
   stiksound create cat.png --profile standard-webp -o cat.webp
   stiksound export cat.stiksound.zip --profile video-webm-alpha
   stiksound mcp --print-config`;
@@ -64,6 +70,13 @@ const COMMAND_HELP: Record<string, string> = {
   create: `Usage:
   stiksound create <image> [options]
   stiksound create --image <image> [options]
+  stiksound create --text "<caption text>" [options]
+
+Text sticker options (alternative to <image>):
+  -t, --text <text>            Render a 512x512 text sticker directly (1-200 chars; supports \\n)
+  --text-color <#RRGGBB>       Text color (default: high-contrast white/dark)
+  --text-style <style>         meme (default), card, minimal
+  --transparent                Transparent background for text stickers (ideal for webm/webp)
 
 Audio source (omit for video clips to use embedded sound, or for standard-webp):
   -a, --audio <path>           Local audio file (MP3, WAV, OGG, M4A, AAC; max 25 MB / 3 min)
@@ -77,7 +90,7 @@ Trim & framing:
   --volume <0..1>              Audio gain (default: 1)
   --crop-x <0..1>              Horizontal 1:1 crop anchor (default: 0.5)
   --crop-y <0..1>              Vertical 1:1 crop anchor (default: 0.5)
-  --matte, --bg <#RRGGBB>      Background fill behind transparency in MP4 (default: #FFFFFF)
+  --matte, --bg <color>        Background fill (#RRGGBB, or "transparent" with --text)
 
 Output:
   -p, --profile <profile>      video-mp4 (default), video-webm-alpha, sound-bundle, standard-webp
@@ -87,6 +100,14 @@ Output:
   -f, --force                  Overwrite destination file when using --output <file>
   --save-project [path]        Also save an editable .stiksound.zip (optional custom path/folder)
   --copy                       Copy exported file to the system clipboard
+  --json                       Print structured JSON to stdout`,
+
+  search: `Usage:
+  stiksound search <query> [options]
+
+Options:
+  -l, --limit <1..20>          Maximum number of results to return (default: 5)
+  --locale <code|en|es>        MyInstants locale path segment (default: en)
   --json                       Print structured JSON to stdout`,
 
   probe: `Usage:
@@ -164,6 +185,22 @@ function parseTrimMode(raw: string | undefined): "start" | "loudest" | undefined
   throw new CliInputError(`--trim must be "start" or "loudest" (got "${raw}").`);
 }
 
+function parseTextStyle(raw: string | undefined): TextStickerStyle | undefined {
+  if (raw === undefined) return undefined;
+  if (!isTextStickerStyle(raw)) {
+    throw new CliInputError(`Unsupported --text-style "${raw}". Choose one of: ${TEXT_STICKER_STYLES.join(", ")}.`);
+  }
+  return raw;
+}
+
+function parsePositiveInt(raw: string | undefined, label: string): number | undefined {
+  if (raw === undefined) return undefined;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new CliInputError(`${label} must be a positive integer (got "${raw}").`);
+  }
+  return Number(raw.trim());
+}
+
 function formatMcpConfig(execPath: string, outputDir?: string): string {
   const args = outputDir ? [execPath, "mcp", "--output-dir", outputDir] : [execPath, "mcp"];
   const claudeCmd = ["claude mcp add stiksound --scope user -- node", ...args.map((a) => JSON.stringify(a))].join(" ");
@@ -234,6 +271,30 @@ export async function runCli(argv: readonly string[], options: RunCliOptions = {
       return 0;
     }
 
+    if (command === "search") {
+      const { values, positionals } = parseOrThrow({
+        args: rest,
+        allowPositionals: true,
+        options: {
+          limit: { type: "string", short: "l" },
+          locale: { type: "string" },
+          json: { type: "boolean", default: false }
+        }
+      });
+      const query = positionals.join(" ").trim();
+      if (!query) {
+        throw new CliInputError('Missing search query. Usage: stiksound search "<query>" [--limit 5] [--json]');
+      }
+      const context = createServiceContext(options);
+      const result = await searchSounds(context, {
+        query,
+        limit: parsePositiveInt(values.limit, "--limit"),
+        locale: values.locale
+      });
+      io.stdout(values.json ? JSON.stringify(result.payload, null, 2) : formatSearchHuman(result.payload));
+      return 0;
+    }
+
     if (command === "probe") {
       const { values, positionals } = parseOrThrow({
         args: rest,
@@ -292,6 +353,10 @@ export async function runCli(argv: readonly string[], options: RunCliOptions = {
         allowPositionals: true,
         options: {
           image: { type: "string", short: "i" },
+          text: { type: "string", short: "t" },
+          "text-color": { type: "string" },
+          "text-style": { type: "string" },
+          transparent: { type: "boolean", default: false },
           audio: { type: "string", short: "a" },
           url: { type: "string", short: "u" },
           start: { type: "string" },
@@ -314,8 +379,10 @@ export async function runCli(argv: readonly string[], options: RunCliOptions = {
       });
 
       const imagePath = values.image ?? positionals[0];
-      if (!imagePath) {
-        throw new CliInputError("Missing image path. Usage: stiksound create <image> [-a <audio> | -u <myinstants-url>]");
+      if (!imagePath && values.text === undefined) {
+        throw new CliInputError(
+          'Missing image path or --text. Usage: stiksound create (<image> | --text "...") [-a <audio> | -u <myinstants-url>]'
+        );
       }
       if (values.matte && values.bg) {
         throw new CliInputError("Pass either --matte or --bg, not both.");
@@ -324,6 +391,10 @@ export async function runCli(argv: readonly string[], options: RunCliOptions = {
       const context = createServiceContext(options);
       const result = await createSoundSticker(context, {
         imagePath,
+        text: values.text,
+        textColor: values["text-color"],
+        textStyle: parseTextStyle(values["text-style"]),
+        transparentBackground: Boolean(values.transparent),
         audioPath: values.audio,
         myinstantsUrl: values.url,
         startMs: values.start !== undefined ? parseTimeToMs(values.start, "--start") : undefined,
