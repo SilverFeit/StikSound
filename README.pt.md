@@ -154,7 +154,7 @@ crates/
   image-engine/  Probe e utilidades de imagem/GIF em Rust
   video-engine/  Validação e utilidades de mux em Rust
   project-store/ Escrita atômica e pacotes em Rust
-docs/            Requisitos, arquitetura, especificações e decisões
+docs/            Ícones do app e avisos legais de terceiros (THIRD_PARTY.md)
 ```
 
 ---

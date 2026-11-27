@@ -194,7 +194,7 @@ crates/
   image-engine/  Rust image/GIF probing & utilities
   video-engine/  Rust video validation & mux utilities
   project-store/ Rust atomic file & package store
-docs/            Requirements, architecture, specs & decisions
+docs/            App icons & third-party license notices (THIRD_PARTY.md)
 ```
 
 ---

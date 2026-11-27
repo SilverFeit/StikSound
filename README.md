@@ -458,7 +458,7 @@ crates/
   image-engine/  Probe y utilidades de imagen en Rust
   video-engine/  Validación y mux de video en Rust
   project-store/ Escritura atómica y paquetes en Rust
-docs/            Requisitos, arquitectura, especificaciones y decisiones
+docs/            Iconos de la app y avisos legales (THIRD_PARTY.md)
 ```
 
 La idea principal es que la UI no contiene reglas de negocio: React llama a casos de uso de `packages/core`, y esos casos de uso delegan el trabajo de medios en un motor intercambiable (`WebMediaEngine` o componentes Rust en desktop).
@@ -593,12 +593,8 @@ npx tauri build
 
 - README en inglés: [README.en.md](README.en.md)
 - README en portugués: [README.pt.md](README.pt.md)
-- Índice técnico: [docs/README.md](docs/README.md)
-- Arquitectura: [docs/architecture/overview.md](docs/architecture/overview.md)
-- Requisitos funcionales: [docs/requirements/functional-requirements.md](docs/requirements/functional-requirements.md)
-- Exportación: [docs/specifications/export.md](docs/specifications/export.md)
-- Seguridad: [docs/specifications/security.md](docs/specifications/security.md)
-- Plan de pruebas: [docs/qa/test-plan.md](docs/qa/test-plan.md)
+- Documentación de la CLI y MCP: [apps/cli/README.md](apps/cli/README.md)
+- Avisos de terceros y licencias: [docs/legal/THIRD_PARTY.md](docs/legal/THIRD_PARTY.md)
 
 ## License
 

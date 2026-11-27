@@ -22,5 +22,7 @@ Thumbs.db
 .env
 .env.*
 
-# Internal handoff docs
-docs/gemini-handoff/
+# Internal documentation, analysis, specs & handoff notes (kept local only)
+docs/*
+!docs/assets/
+!docs/legal/
