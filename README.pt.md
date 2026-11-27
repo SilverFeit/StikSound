@@ -76,7 +76,7 @@ O StikSound combina **uma imagem quadrada** e **um trecho de áudio** em um arqu
 ---
 
 <details>
-<summary><strong>Para usuários avançados: CLI headless, servidor MCP, funcionamento interno e estrutura do repositório</strong> (clique para expandir)</summary>
+<summary><strong>Para usuários avançados: CLI headless, servidor MCP, funcionamento interno, estrutura do repositório e desenvolvimento</strong> (clique para expandir)</summary>
 
 ## 🤖 CLI Headless e Servidor MCP Local (Figurinhas com IA)
 
@@ -160,6 +160,20 @@ crates/
 docs/            Ícones do app e avisos legais de terceiros (THIRD_PARTY.md)
 ```
 
+---
+
+## Desenvolvimento
+
+```bash
+git clone https://github.com/SilverFeit/StikSound.git
+cd StikSound
+npm install
+npm run typecheck
+npm test
+npm run build
+cargo test --workspace --exclude stiksound-desktop
+```
+
 </details>
 
 ---
@@ -189,18 +203,6 @@ docs/            Ícones do app e avisos legais de terceiros (THIRD_PARTY.md)
 - A única requisição de rede é a resolução de links do MyInstants (apenas Desktop e Extensão Chrome), protegida por lista estrita HTTPS, limite de redirecionamentos, bloqueio de IPs privados/reservados em Rust e limite de 25 MB / 20 s.
 
 ---
-
-## Desenvolvimento
-
-```bash
-git clone https://github.com/SilverFeit/StikSound.git
-cd StikSound
-npm install
-npm run typecheck
-npm test
-npm run build
-cargo test --workspace --exclude stiksound-desktop
-```
 
 ## Licença
 
